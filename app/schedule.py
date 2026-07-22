@@ -233,7 +233,10 @@ def load_schedule(path: Path) -> dict[str, ScheduleTask]:
                 notes=row.get("notes", ""),
             )
         except (KeyError, ValueError) as exc:
-            raise IngestionError("invalid_schedule", "Schedule contains invalid task data") from exc
+            raise IngestionError(
+                "invalid_schedule",
+                "Schedule contains invalid task data"
+            ) from exc
         if not task.task_id or task.task_id in tasks:
             raise IngestionError("invalid_schedule", "Schedule task IDs must be unique")
         tasks[task.task_id] = task

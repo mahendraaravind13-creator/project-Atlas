@@ -1,4 +1,5 @@
 import mimetypes
+from urllib import request
 import uuid
 from collections.abc import AsyncIterator
 from pathlib import Path
@@ -72,6 +73,7 @@ from app.procurement import (
 )
 from app.schedule import ScheduleAnalysis, ScheduleScenario, ScheduleSnapshot
 from app.workflow import ConversationMessage, CopilotResult, QueryPlanResult, RfiResult
+from tests.test_hybrid_retrieval import payload
 
 router = APIRouter(prefix="/projects", tags=["projects"])
 evaluation_router = APIRouter(prefix="/api/evaluation", tags=["evaluation"])
@@ -339,8 +341,13 @@ async def retrieve(
     request: Request,
     session: AsyncSession = Depends(get_session),
 ) -> RetrievalResponse:
+    print("API project_id:", project_id)
+
     await _project_or_404(session, project_id)
+
     plan = await request.app.state.knowledge_service.query_plan(project_id, payload.query, [])
+    print("PLAN:", plan)
+
     results = await retrieve_chunks(
         request.app.state.qdrant,
         request.app.state.embedder,
@@ -350,9 +357,10 @@ async def retrieve(
         payload.limit,
         query_plan=plan,
     )
+
+    print("Retrieved", len(results), "chunks")
+
     return RetrievalResponse(results=results)
-
-
 @router.post("/{project_id}/context", response_model=ContextBundle)
 async def build_context(
     project_id: uuid.UUID,

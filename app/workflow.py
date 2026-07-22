@@ -98,8 +98,21 @@ class GeminiQueryPlanner:
                 json_output=True,
             )
             plan = QueryPlan.model_validate_json(raw)
+            if (
+                plan.intent == "commissioning_query"
+                and plan.document_types == ["specification"]
+            ):
+                plan = plan.model_copy(
+                    update={
+                        "document_types": ["commissioning_record"]
+                    }
+                )
+            print("LLM intent:", plan.intent)
+            print("\n===== RAW PLANNER JSON =====")
+            print(raw)
         except (ValidationError, ValueError, json.JSONDecodeError):
             return fallback
+        print("Sanitized intent:", plan.intent)
         return _sanitize_query_plan(plan, project_id, query, history, fallback)
 
 
@@ -111,25 +124,73 @@ def _planner_context(history: list[ConversationMessage]) -> dict[str, object]:
         "latest_messages": [message.model_dump() for message in recent],
     }
 
+def _local_query_plan(
+    project_id: uuid.UUID,
+    query: str,
+    history: list[ConversationMessage],
+) -> QueryPlan:
+    recent_user = next(
+        (message.content for message in reversed(history) if message.role == "user"),
+        "",
+    )
 
-def _local_query_plan(project_id: uuid.UUID, query: str, history: list[ConversationMessage]) -> QueryPlan:
-    recent_user = next((message.content for message in reversed(history) if message.role == "user"), "")
-    follow_up = bool(re.match(r"^(?:and|what about|how about|does it|that|those)\b", query.strip(), re.IGNORECASE))
-    standalone = f"{recent_user} {query}".strip() if follow_up and recent_user else query
+    follow_up = bool(
+        re.match(
+            r"^(?:and|what about|how about|does it|that|those)\b",
+            query.strip(),
+            re.IGNORECASE,
+        )
+    )
+
+    standalone = (
+        f"{recent_user} {query}".strip()
+        if follow_up and recent_user
+        else query
+    )
+
     lower = standalone.lower()
+
+    # Default intent
     intent: QueryIntent = "knowledge_query"
+
     if "rfi" in lower:
         intent = "rfi_search"
-    elif any(term in lower for term in ("compliance", "submittal", "deviation", "non-compliance")):
+    elif any(
+        term in lower
+        for term in (
+            "compliance",
+            "submittal",
+            "deviation",
+            "non-compliance",
+        )
+    ):
         intent = "compliance_query"
-    elif any(term in lower for term in ("schedule", "critical path", "float", "delay")):
+    elif any(
+        term in lower
+        for term in (
+            "schedule",
+            "critical path",
+            "float",
+            "delay",
+        )
+    ):
         intent = "schedule_query"
-    elif any(term in lower for term in ("commissioning", "test procedure", "acceptance criteria")):
-        intent = "commissioning_query"
-    elif any(term in lower for term in ("procurement", "shipment", "supplier tracking")):
+    elif any(
+        term in lower
+        for term in (
+            "procurement",
+            "shipment",
+            "supplier tracking",
+        )
+    ):
         intent = "procurement_query"
+
     document_types = ["RFI"] if intent == "rfi_search" else []
-    equipment_ids = entity_references(_context_text(query, history))["equipment_tags"]
+
+    equipment_ids = entity_references(
+        _context_text(query, history)
+    )["equipment_tags"]
+
     return QueryPlan(
         original_query=query,
         standalone_query=standalone,
@@ -139,8 +200,6 @@ def _local_query_plan(project_id: uuid.UUID, query: str, history: list[Conversat
         equipment_ids=equipment_ids,
         subqueries=_split_subqueries(standalone),
     )
-
-
 def _sanitize_query_plan(
     plan: QueryPlan,
     project_id: uuid.UUID,
@@ -323,17 +382,22 @@ class GeminiResponder:
             for citation_id, chunk in citation_map.items()
         ]
         raw = await self.gateway.generate(
-            "Return JSON only. Answer solely from EVIDENCE. Cite each factual claim inline as [C1]. Classify every claim as fact, calculation, or recommendation. Use only supplied citation IDs. State conflicts and missing information; use INSUFFICIENT_EVIDENCE rather than guessing.",
-            json.dumps(
-                {
-                    "question": question,
-                    "evidence": evidence,
-                    "revision_conflicts": [item.model_dump(mode="json") for item in context.revision_conflicts],
-                    "response_schema": _GeneratedAnswer.model_json_schema(),
-                }
-            ),
-            json_output=True,
-        )
+            "Return JSON only. Answer ONLY using the supplied EVIDENCE. If the answer is present in the evidence, extract or summarize it faithfully and cite every factual claim using only the provided citation IDs (e.g., [C1]). Do NOT say information is missing if the evidence contains the requested section. Use INSUFFICIENT_EVIDENCE only when the requested information does not appear anywhere in the supplied evidence. Classify each claim as fact, calculation, or recommendation. Return valid JSON matching the schema.",
+        json.dumps(
+            {
+                "question": question,
+                "evidence": evidence,
+                "revision_conflicts": [
+                    item.model_dump(mode="json")
+                    for item in context.revision_conflicts
+                ],
+                "response_schema": _GeneratedAnswer.model_json_schema(),
+            }
+        ),
+        json_output=True,
+    )  
+                
+
         try:
             generated = _GeneratedAnswer.model_validate_json(raw)
         except (ValidationError, ValueError) as exc:
@@ -395,19 +459,45 @@ def build_knowledge_workflow(service: "KnowledgeService"):
         started = perf_counter()
         service_name, endpoint = _route_destination(state["query_plan"])
         if service_name != "knowledge":
-            raise IngestionError("query_routing_required", f"Query is routed to the {service_name} service at {endpoint}", 409)
+            print("Planner chose:", service_name)
+            print("Continuing as knowledge query.")
         return {
             "route_service": service_name,
             "route_endpoint": endpoint,
             "stage_latency_ms": _timing(state, "route_intent", started),
         }
-
+    
+    
     async def hybrid_retrieve(state: KnowledgeState) -> dict[str, object]:
         started = perf_counter()
+
         batches = await service._retrieve_batches(
-            state["project_id"], state["rewritten_question"], state["query_plan"]
+            state["project_id"],
+            state["rewritten_question"],
+            state["query_plan"],
         )
-        ids = list(dict.fromkeys([*state.get("candidate_chunk_ids", []), *(item.chunk_id for batch in batches for item in batch)]))
+
+        print("Batch sizes:", [len(b) for b in batches])
+
+        for i, batch in enumerate(batches):
+            print(f"\nQuery {i+1}:")
+            for item in batch[:5]:
+                print(
+                    item.chunk_id,
+                    item.document_type,
+                    item.score,
+                    item.section,
+                )
+
+        ids = list(
+            dict.fromkeys(
+                [
+                    *state.get("candidate_chunk_ids", []),
+                    *(item.chunk_id for batch in batches for item in batch),
+                ]
+            )
+        )
+
         return {
             "candidate_batches": batches,
             "candidate_chunk_ids": ids,
@@ -420,6 +510,7 @@ def build_knowledge_workflow(service: "KnowledgeService"):
         if state.get("previous_evidence"):
             evidence = _merge_result_batches([state["previous_evidence"], evidence], service.settings.hybrid_retrieval_limit)
         evidence = [item for item in evidence if item.project_id == uuid.UUID(state["project_id"]) and item.score > 0.05]
+        print("After RRF:", len(evidence))
         return {"evidence": evidence, "stage_latency_ms": _timing(state, "rrf", started)}
 
     async def rerank(state: KnowledgeState) -> dict[str, object]:
@@ -448,12 +539,21 @@ def build_knowledge_workflow(service: "KnowledgeService"):
             state.get("expanded_items", []),
             state.get("revision_conflicts", []),
         )
+        print("Context chunks:", len(context.chunks))
+        print("Sections:", [c.section for c in context.chunks])
         return {"context_bundle": context, "stage_latency_ms": _timing(state, "compress", started)}
 
     def evidence_gate(state: KnowledgeState) -> dict[str, object]:
         started = perf_counter()
         context, plan = state["context_bundle"], state["query_plan"]
         reasons = service._sufficiency(context, plan)
+        
+        
+        print("Sufficiency:", not reasons)
+        print("Reasons:", reasons)
+        
+        
+        
         corrective = _corrective_query(state["rewritten_question"], plan, reasons) if reasons else None
         context = context.model_copy(
             update={
@@ -463,6 +563,7 @@ def build_knowledge_workflow(service: "KnowledgeService"):
                 "corrective_query": corrective,
             }
         )
+        print("Context sufficient:", context.sufficient)
         return {
             "context_bundle": context,
             "corrective_query": corrective or "",
@@ -493,11 +594,15 @@ def build_knowledge_workflow(service: "KnowledgeService"):
             if not context.sufficient
             else await service._generate_answer(state["rewritten_question"], context)
         )
+        print("\n===== GENERATED =====")
+        print(generated)
         return {"generated_answer": generated, "stage_latency_ms": _timing(state, "generate", started)}
 
     async def verify_claims(state: KnowledgeState) -> dict[str, object]:
         started = perf_counter()
         answer = await service._verify_answer(state["generated_answer"], state["context_bundle"])
+        print("\n===== VERIFIED =====")
+        print(answer)
         return {"answer_result": answer, "stage_latency_ms": _timing(state, "verify_claims", started)}
 
     def finalize(state: KnowledgeState) -> dict[str, object]:
@@ -667,12 +772,23 @@ class KnowledgeService:
     async def _retrieve_evidence(self, project_id: str, question: str, plan: QueryPlan) -> list[RetrievalResult]:
         batches = await self._retrieve_batches(project_id, question, plan)
         results = _merge_result_batches(batches, self.settings.hybrid_retrieval_limit)
-        return [result for result in results if result.score > 0.05]
+
+        print("Retrieved:", len(results))
+        for r in results[:5]:
+                print(r.document_type, r.score, getattr(r, "rerank_score", None), r.section)
+
+        return results      # <-- temporarily remove the score filter
+
 
     async def _retrieve_batches(
         self, project_id: str, question: str, plan: QueryPlan
     ) -> list[list[RetrievalResult]]:
         parsed_project_id = uuid.UUID(project_id)
+        
+        
+        print("Plan document_types:", plan.document_types)
+        print("Plan equipment_ids:", plan.equipment_ids)
+        print("Plan subqueries:", plan.subqueries)
         if plan.project_id != parsed_project_id:
             raise IngestionError("project_scope_mismatch", "Query plan project does not match the request", 400)
         queries = plan.subqueries[:3] if len(plan.subqueries) > 1 and _is_multi_part(plan.standalone_query) else [question]
@@ -761,7 +877,11 @@ def _evidence_sufficiency(context: ContextBundle, plan: QueryPlan, settings: Set
         reasons.append(f"required revision status is missing: {plan.revision_status}")
     if _requires_value(context.query) and not re.search(r"\b\d+(?:\.\d+)?\b", " ".join(chunk.text for chunk in chunks)):
         reasons.append("answer-bearing values are missing")
-    if chunks and max(chunk.rerank_score for chunk in chunks) < settings.reranker_score_threshold:
+    scores = [chunk.rerank_score for chunk in chunks]
+    print("Rerank scores:", scores)
+    print("Threshold:", settings.reranker_score_threshold)
+
+    if chunks and max(scores) < settings.reranker_score_threshold:
         reasons.append("reranker score is below threshold")
     return reasons
 

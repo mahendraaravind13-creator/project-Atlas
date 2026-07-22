@@ -165,7 +165,41 @@ function Impact({ projectId, documents }: { projectId: string; documents: Docume
   const refresh = async () => { setBusy(true); try { const [findingData, shipmentData] = await Promise.all([api.complianceFindings(projectId), api.shipments(projectId)]); setFindings(findingData.findings.filter((item) => item.status === "NON_COMPLIANT")); setShipments(shipmentData.shipments.length ? shipmentData : await api.seedSupplyChain(projectId)); } catch (error) { setNotice({ kind: "error", text: errorText(error) }); } finally { setBusy(false); } };
   useEffect(() => { void Promise.all([api.complianceFindings(projectId), api.shipments(projectId)]).then(([findingData, shipmentData]) => { setFindings(findingData.findings.filter((item) => item.status === "NON_COMPLIANT")); if (shipmentData.shipments.length) setShipments(shipmentData); else void api.seedSupplyChain(projectId).then(setShipments); }, (error) => setNotice({ kind: "error", text: errorText(error) })); }, [projectId]);
   const finding = findings.find((item) => item.equipment_id === "SWGR-A" && item.parameter === "interrupting_rating") ?? findings[0]; const shipment = shipments?.shipments.find((item) => item.equipment_id === finding?.equipment_id) ?? shipments?.shipments[0];
-  const start = async () => { if (!finding || !shipment || !schedule) return setNotice({ kind: "error", text: "Seed the SWGR-A rating scenario and ingest the schedule before starting the chain." }); setBusy(true); try { setChain(await api.startImpact(projectId, { compliance_finding_id: finding.id, shipment_id: shipment.shipment_id, schedule_document_id: schedule.id, replacement_lead_time_days: 42, replacement_cost: 85000, analysis_date: new Date().toISOString().slice(0, 10) })); } catch (error) { setNotice({ kind: "error", text: errorText(error) }); } finally { setBusy(false); } };
+  const start = async () => {
+    console.log("START CLICKED");
+
+    if (!finding || !shipment || !schedule) {
+        console.log("Missing input", { finding, shipment, schedule });
+        return setNotice({
+            kind: "error",
+            text: "Seed the SWGR-A rating scenario and ingest the schedule before starting the chain."
+        });
+    }
+
+    console.log("Calling API...");
+
+    setBusy(true);
+
+    try {
+        const result = await api.startImpact(projectId, {
+            compliance_finding_id: finding.id,
+            shipment_id: shipment.shipment_id,
+            schedule_document_id: schedule.id,
+            replacement_lead_time_days: 42,
+            replacement_cost: 85000,
+            analysis_date: new Date().toISOString().slice(0, 10)
+        });
+
+        console.log("API returned", result);
+
+        setChain(result);
+    } catch (error) {
+        console.error(error);
+        setNotice({ kind: "error", text: errorText(error) });
+    } finally {
+        setBusy(false);
+    }
+}
   const decide = async (action: "APPROVE" | "REJECT" | "REQUEST_REVIEW" | "CREATE_RFI" | "CREATE_NCR", scenario_id?: string) => { if (!chain) return; setBusy(true); try { setChain(await api.decideImpact(projectId, chain.chain_id, { action, scenario_id, note: "Demo reviewer decision" })); } catch (error) { setNotice({ kind: "error", text: errorText(error) }); } finally { setBusy(false); } };
   return <div className="space-y-4"><div className="flex items-end justify-between"><Heading title="Atlas Impact Chain" text="SWGR-A rating deviation → vendor resubmission → shipment ETA → schedule exposure → readiness → mitigation." /><div className="flex gap-2"><SyntheticBadge /><Badge tone="blue">Deterministic values</Badge></div></div><Card className="flex items-center justify-between"><div className="text-sm"><strong>{finding ? `${finding.equipment_id} ${finding.parameter}` : "Switchgear rating finding required"}</strong><span className="ml-3 text-slate-500">{shipment?.reference ?? "Shipment required"} · {schedule?.filename ?? "Schedule required"}</span></div><div className="flex gap-2"><Button variant="secondary" onClick={refresh} disabled={busy}>Retry inputs</Button><Button onClick={start} disabled={busy}>{busy ? "Calculating…" : "Run connected flow"}</Button></div></Card><NoticeBox notice={notice} />{chain ? <div className="grid h-[560px] grid-cols-[.8fr_1.4fr] gap-4 overflow-hidden"><Card className="overflow-y-auto"><Badge tone={chain.status === "ACTION_CREATED" ? "green" : "amber"}>{chain.status === "ACTION_CREATED" ? "Human-approved action" : "AI suggestions · decision pending"}</Badge><h3 className="mt-3 text-xl font-semibold">{chain.equipment_id}: {chain.finding_parameter}</h3><p className="mt-2 text-sm">{chain.finding_observed_value ?? "Missing"} observed vs {chain.finding_required_value} required</p><div className="mt-4 grid grid-cols-2 gap-3"><MetricMini label="Predicted delay" value={`${chain.schedule.predicted_delay_days}d`} /><MetricMini label="Available float" value={`${chain.schedule.available_float_days}d`} /><MetricMini label="Critical impact" value={`${chain.schedule.critical_path_impact_days}d`} /><MetricMini label="Readiness" value={`${chain.commissioning_readiness.score}%`} /></div><Button className="mt-4 w-full" variant="secondary" onClick={() => setDrawer(chain.evidence_chain)}>Evidence chain</Button></Card><div className="space-y-3 overflow-y-auto pr-1">{chain.mitigation_scenarios.map((scenario) => <Card key={scenario.id}><div className="flex items-start justify-between"><div><Badge tone={chain.approved_action?.scenario_id === scenario.id ? "green" : "blue"}>{chain.approved_action?.scenario_id === scenario.id ? "Human approved" : "AI suggestion"}</Badge><h3 className="mt-2 font-semibold">{scenario.action}</h3></div><strong className="text-signal">{scenario.days_recovered}d recovered</strong></div><div className="mt-3 grid grid-cols-3 gap-3 text-sm"><MetricMini label="Added cost" value={`$${scenario.added_cost.toLocaleString()}`} /><MetricMini label="Remaining delay" value={`${scenario.remaining_delay}d`} /><MetricMini label="Risk" value={scenario.remaining_risk} /></div>{chain.status === "AWAITING_HUMAN_DECISION" && <div className="mt-3 flex gap-2"><Button onClick={() => decide("APPROVE", scenario.id)}>Approve</Button><Button variant="secondary" onClick={() => decide("REQUEST_REVIEW")}>Request review</Button><Button variant="danger" onClick={() => decide("REJECT")}>Reject</Button></div>}</Card>)}</div></div> : busy ? <Loading label="Calculating causal and evidence chain…" /> : <Empty>No impact chain yet. Seed the SWGR-A rating scenario, shipment, and schedule.</Empty>}{drawer && <EvidenceDrawer title="Impact chain evidence" evidence={drawer} onClose={() => setDrawer(null)} />}</div>;
 }
