@@ -17,7 +17,7 @@ from app.procurement import ProcurementRiskService
 from app.schedule import ScheduleService
 from app.database import check_database, create_database_engine, create_session_factory, initialize_database
 from app.graph import GraphStore
-from app.ingestion import IngestionError, LocalHashEmbedder
+from app.ingestion import IngestionError, build_embedder
 from app.impact_chain import ImpactChainService
 from app.workflow import KnowledgeService, build_workflow
 
@@ -36,7 +36,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         url=settings.qdrant_url, api_key=settings.qdrant_api_key, check_compatibility=False
     )
     app.state.settings = settings
-    app.state.embedder = LocalHashEmbedder(settings)
+    app.state.embedder = build_embedder(settings)
     app.state.graph_store = GraphStore(settings.graph_dir)
     app.state.knowledge_service = KnowledgeService(settings, app.state.qdrant, app.state.embedder)
     app.state.compliance_service = ComplianceService(settings)

@@ -74,7 +74,7 @@ flowchart LR
 - **Backend:** FastAPI, SQLAlchemy, Alembic, LangGraph.
 - **Data:** PostgreSQL (Supabase-compatible deployment), Qdrant, NetworkX prototype graph.
 - **Document processing:** PyMuPDF, optional Tesseract OCR, CSV parser.
-- **AI:** Groq (Llama 3.3 70B) through a backend-only gateway; sentence-transformers/local deterministic retrieval components.
+- **AI:** Groq (Llama 3.3 70B) through a backend-only gateway for generation; sentence-transformers `all-MiniLM-L6-v2` for semantic embeddings and `ms-marco-MiniLM-L-6-v2` for reranking. A deterministic non-semantic hash embedder (`ATLAS_EMBEDDING_BACKEND=local_hash`) is retained for offline runs and the evaluation harness.
 
 ## Evaluation results
 
@@ -147,6 +147,25 @@ Old documents are reindexed only when explicitly requested:
 ```bash
 python3 -m scripts.reindex --project-id <PROJECT_UUID>
 ```
+
+### Migrating an index created before semantic embeddings
+
+Retrieval now uses a sentence-transformer model (384 dimensions) instead of the
+previous non-semantic hash embedder (1536 dimensions), so `ATLAS_INDEX_VERSION`
+moved to `3`. Vectors written by an earlier version are not comparable and a
+Qdrant collection created at the old width cannot accept the new ones —
+ingestion fails with `embedding_dimension_mismatch` (409) rather than storing
+mixed vectors. To migrate an existing deployment, drop the collection and
+rebuild it:
+
+```bash
+curl -X DELETE "$QDRANT_URL/collections/atlas_chunks"   # or set ATLAS_QDRANT_COLLECTION to a new name
+python3 -m scripts.reindex --project-id <PROJECT_UUID> --force
+```
+
+To run fully offline, or to reproduce the deterministic evaluation numbers, set
+`ATLAS_EMBEDDING_BACKEND=local_hash`. That backend is not semantic and will not
+match paraphrased questions.
 
 ## Deployment
 

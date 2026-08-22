@@ -17,7 +17,7 @@
 
 ## AI and retrieval
 
-- Groq requires a configured API key. Local deterministic embeddings are a prototype and are not managed production embeddings.
+- Groq requires a configured API key. Embeddings run in-process from a self-hosted `all-MiniLM-L6-v2` model, not a managed embedding service; first use downloads model weights.
 - The latest held-out comparison does not support claiming that advanced RAG is better overall. Advanced Recall@12 is `1.0` versus baseline `0.75`, but advanced correct-document, correct-page, and citation precision are `0.0` in `evaluation/latest.json`.
 - Synthetic evaluation and deterministic test doubles do not measure live Groq quality, latency, token billing, or production concurrency.
 - Citations reduce unsupported answers but do not replace engineering review. Conflicting or insufficient evidence may still require manual investigation.

@@ -1,4 +1,5 @@
 from functools import lru_cache
+from typing import Literal
 
 from pydantic import AliasChoices, Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -83,9 +84,22 @@ class Settings(BaseSettings):
         ),
     )
 
-    embedding_dimensions: int = 1536
+    # "sentence_transformer" gives semantic retrieval. "local_hash" is a
+    # deterministic, offline, non-semantic fallback used by the evaluation
+    # harness and tests; it will not match paraphrases.
+    embedding_backend: Literal["sentence_transformer", "local_hash"] = "sentence_transformer"
+    embedding_model: str = "sentence-transformers/all-MiniLM-L6-v2"
+
+    # Must equal the chosen model's output width (all-MiniLM-L6-v2 -> 384).
+    # A mismatch is rejected at index time rather than silently stored.
+    embedding_dimensions: int = 384
+
     qdrant_collection: str = "atlas_chunks"
-    index_version: str = "2"
+
+    # Bumped to 3 when embeddings moved from hashed bag-of-words to a real
+    # sentence-transformer model; vectors from index_version <= 2 are not
+    # comparable and must be rebuilt with `python -m scripts.reindex --force`.
+    index_version: str = "3"
 
     dense_retrieval_limit: int = 20
     bm25_retrieval_limit: int = 20
@@ -112,6 +126,11 @@ class Settings(BaseSettings):
     max_upload_bytes: int = 50 * 1024 * 1024
 
     min_pdf_text_chars: int = 80
+
+    # Ingestion runs synchronously inside the upload request (there is no
+    # worker). This bounds how long parsing/OCR may hold the connection
+    # before the request fails with 504 instead of hanging.
+    ingestion_timeout_seconds: float = Field(default=300.0, gt=0)
 
     auto_create_schema: bool = False
 

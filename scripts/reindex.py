@@ -10,7 +10,7 @@ from qdrant_client import AsyncQdrantClient
 
 from app.config import get_settings
 from app.database import create_database_engine, create_session_factory
-from app.ingestion import LocalHashEmbedder, reindex_documents
+from app.ingestion import build_embedder, reindex_documents
 from app.models import Project
 
 
@@ -43,7 +43,7 @@ async def run(project_id: uuid.UUID | None, document_id: uuid.UUID | None, force
             return await reindex_documents(
                 session,
                 qdrant,
-                LocalHashEmbedder(settings),
+                build_embedder(settings),
                 settings,
                 project_id,
                 document_id,

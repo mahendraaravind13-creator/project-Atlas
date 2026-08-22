@@ -68,7 +68,10 @@ class IngestionJob(Base):
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     project_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("projects.id"), index=True)
     document_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("documents.id"), index=True)
-    status: Mapped[str] = mapped_column(String(50), default="queued")
+    # Synchronous execution record, not a queue entry: "pending" -> "processing"
+    # -> "completed"|"failed", all within one upload request. attempt_count
+    # increments per explicit re-ingest call; there is no automatic retry.
+    status: Mapped[str] = mapped_column(String(50), default="pending")
     chunk_count: Mapped[int] = mapped_column(default=0)
     attempt_count: Mapped[int] = mapped_column(default=0)
     error: Mapped[str | None] = mapped_column(Text)

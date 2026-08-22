@@ -1,7 +1,7 @@
 ## Completed
 - Foundation: FastAPI, configuration, PostgreSQL/Qdrant clients, data models, health check, workflow skeleton, local dependencies, and focused tests.
 - Fully synthetic, project-scoped EPC demo corpus with compliance, RFI similarity, schedule-risk, commissioning, and context test cases.
-- Project-scoped document ingestion: upload validation, PDF/CSV extraction, conditional OCR fallback, metadata/chunking, local deterministic embeddings, Qdrant indexing, hybrid retrieval, citations, duplicate protection, and failure tracking.
+- Project-scoped document ingestion: upload validation, PDF/CSV extraction, conditional OCR fallback, metadata/chunking, sentence-transformer embeddings, Qdrant indexing, hybrid retrieval, citations, duplicate protection, and failure tracking.
 - Knowledge Copilot and RFI Intelligence LangGraph workflows, plus NetworkX entity extraction and project-scoped graph JSON export.
 - Specification and Quality Compliance Agent with deterministic normalized comparisons, reviewer audit trail, APIs, and ground-truth metrics.
 - Schedule Intelligence Agent with deterministic dependency validation, CPM/float calculations, scenario delay propagation, risk classification, evidence, API, and ground-truth tests.

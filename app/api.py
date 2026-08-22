@@ -276,13 +276,13 @@ async def upload_document(
         filename=filename,
         storage_path=str(upload_path),
         document_type=document_type,
-        status="queued",
+        status="pending",
         content_sha256=content_sha256,
         mime_type=file.content_type or mimetypes.guess_type(filename)[0] or "application/octet-stream",
         size_bytes=len(content),
         metadata_json={},
     )
-    job = IngestionJob(project_id=project_id, document_id=document_id, status="queued")
+    job = IngestionJob(project_id=project_id, document_id=document_id, status="pending")
     session.add_all([document, job])
     try:
         await session.commit()
