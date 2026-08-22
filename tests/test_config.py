@@ -19,18 +19,18 @@ def test_settings_accept_connection_overrides() -> None:
     assert settings.qdrant_url == "http://qdrant:6333"
 
 
-def test_settings_accept_gemini_configuration() -> None:
-    settings = Settings(gemini_api_key="test-key", chat_model="gemini-3.5-flash")
+def test_settings_accept_groq_configuration() -> None:
+    settings = Settings(groq_api_key="test-key", groq_model="llama-3.1-8b-instant")
 
-    assert settings.gemini_api_key == "test-key"
-    assert settings.chat_model == "gemini-3.5-flash"
+    assert settings.groq_api_key == "test-key"
+    assert settings.groq_model == "llama-3.1-8b-instant"
 
 
 def test_blank_optional_api_keys_are_unset() -> None:
-    settings = Settings(qdrant_api_key="", gemini_api_key="")
+    settings = Settings(qdrant_api_key="", groq_api_key="")
 
     assert settings.qdrant_api_key is None
-    assert settings.gemini_api_key is None
+    assert settings.groq_api_key is None
 
 
 def test_cors_origins_come_from_environment_configuration() -> None:
@@ -44,15 +44,17 @@ def test_deployment_variable_aliases_are_supported() -> None:
         DATABASE_URL="postgresql+asyncpg://user:pass@supabase:5432/atlas",
         QDRANT_URL="https://qdrant.example",
         QDRANT_API_KEY="qdrant-key",
-        GEMINI_API_KEY="gemini-key",
-        GEMINI_MODEL="gemini-3.5-flash",
+        GROQ_API_KEY="groq-key",
+        GROQ_MODEL="llama-3.1-8b-instant",
         FRONTEND_URL="https://atlas.example/",
     )
 
     assert settings.database_url.endswith("/atlas")
     assert settings.qdrant_url == "https://qdrant.example"
+    assert settings.qdrant_api_key == "qdrant-key"
     assert settings.allowed_cors_origins == ["https://atlas.example"]
-    assert settings.gemini_api_key == "gemini-key"
+    assert settings.groq_api_key == "groq-key"
+    assert settings.groq_model == "llama-3.1-8b-instant"
 
 
 def test_vectors_and_workflow_are_project_scoped() -> None:
