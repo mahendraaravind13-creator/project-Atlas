@@ -12,7 +12,7 @@ from pydantic import BaseModel, Field
 
 from app.config import Settings
 from app.ingestion import Citation, IngestionError
-from app.llm import GeminiGateway
+from app.llm import GroqGateway
 from app.models import Document
 
 
@@ -112,7 +112,7 @@ class ScheduleAnalysis(BaseModel):
 
 class ScheduleNarrator:
     def __init__(self, settings: Settings) -> None:
-        self.gateway = GeminiGateway(settings)
+        self.gateway = GroqGateway(settings)
 
     async def enrich(self, risk: ScheduleRisk) -> ScheduleRisk:
         if not self.gateway.client:

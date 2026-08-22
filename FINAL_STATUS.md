@@ -74,7 +74,7 @@ One-command local demo:
 
 ```bash
 cp .env.example .env
-# Set GEMINI_API_KEY in .env
+# Set GROQ_API_KEY in .env
 ./scripts/start_demo.sh
 ```
 

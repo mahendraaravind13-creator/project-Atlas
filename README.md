@@ -17,7 +17,7 @@ EPC teams must reconcile specifications, vendor submittals, RFIs, delivery updat
 
 ## Our solution
 
-Atlas is a Next.js dashboard backed by one FastAPI service. It ingests project documents, retrieves evidence by project, applies deterministic engineering rules for compliance and schedule analysis, and keeps human approvals separate from AI suggestions. Gemini is used only for structured extraction, evidence-grounded explanations, and answer generation; deterministic calculations remain in Python.
+Atlas is a Next.js dashboard backed by one FastAPI service. It ingests project documents, retrieves evidence by project, applies deterministic engineering rules for compliance and schedule analysis, and keeps human approvals separate from AI suggestions. Groq is used only for structured extraction, evidence-grounded explanations, and answer generation; deterministic calculations remain in Python.
 
 ### Main innovation: Equipment Digital Thread + Impact Chain
 
@@ -36,7 +36,7 @@ The seeded SWGR-A scenario demonstrates a deliberate 50 kAIC rating deviation, i
 | CPM schedule impact engine | **Implemented** | One planted scenario: predicted/simulated delay `35` days |
 | Commissioning procedures, deterministic pass/fail, NCRs, readiness | **Implemented** | `21/21` steps evaluated; expected/actual NCR `1/1` |
 | Equipment Digital Thread and project isolation | **Implemented** | API and cross-project tests |
-| Advanced RAG, RFI matching, and Gemini-backed cited answers | **Demo implementation** | Evaluated only on synthetic corpus; live Gemini response quality is not verified |
+| Advanced RAG, RFI matching, and Groq-backed cited answers | **Demo implementation** | Evaluated only on synthetic corpus; live Groq response quality is not verified |
 | Supply-chain shipment risk and alternatives | **Demo implementation** | Synthetic shipments/events only; no live tracking |
 | Impact Chain and mitigation simulator | **Demo implementation** | Idempotent SWGR-A integration scenario |
 | Authentication/RBAC, object storage, queued ingestion, live AIS/weather/ERP/P6/QMS integrations | **Roadmap** | Not represented as active functionality |
@@ -58,7 +58,7 @@ flowchart LR
   ING --> Q[("Qdrant project-scoped vectors")]
   RAG --> RET["Dense + BM25 → RRF → rerank → evidence gate"]
   Q --> RET
-  RET --> GEM["Gemini evidence-only explanation/generation"]
+  RET --> GEM["Groq evidence-only explanation/generation"]
   RET --> COMP["Deterministic compliance"]
   RET --> SCH["Deterministic CPM schedule"]
   COMP --> THREAD["Equipment Digital Thread"]
@@ -74,7 +74,7 @@ flowchart LR
 - **Backend:** FastAPI, SQLAlchemy, Alembic, LangGraph.
 - **Data:** PostgreSQL (Supabase-compatible deployment), Qdrant, NetworkX prototype graph.
 - **Document processing:** PyMuPDF, optional Tesseract OCR, CSV parser.
-- **AI:** Google Gemini through a backend-only gateway; sentence-transformers/local deterministic retrieval components.
+- **AI:** Groq (Llama 3.3 70B) through a backend-only gateway; sentence-transformers/local deterministic retrieval components.
 
 ## Evaluation results
 
@@ -109,15 +109,15 @@ The current advanced pipeline does not outperform the baseline on all guarded qu
 
 ## Security and project isolation
 
-All persisted/retrieved project data and vector payloads are scoped by `project_id`; API services include project-isolation tests. Upload validation and size limits are configured centrally. Backend secrets remain server-only: never expose `GEMINI_API_KEY`, `QDRANT_API_KEY`, `DATABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, or `JWT_SECRET_KEY` to the browser. **Authentication and RBAC are roadmap items**, so this demo must remain behind an authenticated gateway before public exposure.
+All persisted/retrieved project data and vector payloads are scoped by `project_id`; API services include project-isolation tests. Upload validation and size limits are configured centrally. Backend secrets remain server-only: never expose `GROQ_API_KEY`, `QDRANT_API_KEY`, `DATABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, or `JWT_SECRET_KEY` to the browser. **Authentication and RBAC are roadmap items**, so this demo must remain behind an authenticated gateway before public exposure.
 
 ## Local demo
 
-Prerequisites: Python 3.11+, Node.js/npm, Docker Compose, and a Gemini API key. Tesseract is needed only for OCR fallback on image-only PDFs.
+Prerequisites: Python 3.11+, Node.js/npm, Docker Compose, and a Groq API key. Tesseract is needed only for OCR fallback on image-only PDFs.
 
 ```bash
 cp .env.example .env
-# Add GEMINI_API_KEY to .env (never commit it)
+# Add GROQ_API_KEY to .env (never commit it)
 ./scripts/start_demo.sh
 ```
 
@@ -127,7 +127,7 @@ There are no demo credentials because application authentication is not implemen
 
 ### Environment-variable names
 
-**Backend:** `DATABASE_URL`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `QDRANT_URL`, `QDRANT_API_KEY`, `GEMINI_API_KEY`, `GEMINI_MODEL`, `JWT_SECRET_KEY`, `FRONTEND_URL`.
+**Backend:** `DATABASE_URL`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `QDRANT_URL`, `QDRANT_API_KEY`, `GROQ_API_KEY`, `GROQ_MODEL`, `JWT_SECRET_KEY`, `FRONTEND_URL`.
 
 **Frontend:** `NEXT_PUBLIC_API_URL`, `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`.
 
@@ -169,7 +169,7 @@ docs/                   Architecture, demo, provenance, limitations, licenses
 
 ## Known limitations and roadmap
 
-See [LIMITATIONS.md](docs/LIMITATIONS.md) and [ROADMAP.md](docs/ROADMAP.md). The key limitations are synthetic-only operational data, no application auth/RBAC, no live logistics/weather/enterprise integration, local/prototype graph storage, and unverified live Gemini quality. The next production step is authenticated tenancy and queued, object-storage-backed ingestion—not additional UI features.
+See [LIMITATIONS.md](docs/LIMITATIONS.md) and [ROADMAP.md](docs/ROADMAP.md). The key limitations are synthetic-only operational data, no application auth/RBAC, no live logistics/weather/enterprise integration, local/prototype graph storage, and unverified live Groq quality. The next production step is authenticated tenancy and queued, object-storage-backed ingestion—not additional UI features.
 
 ## Team
 

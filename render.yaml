@@ -16,9 +16,9 @@ services:
         sync: false
       - key: QDRANT_API_KEY
         sync: false
-      - key: GEMINI_API_KEY
+      - key: GROQ_API_KEY
         sync: false
-      - key: GEMINI_MODEL
+      - key: GROQ_MODEL
         sync: false
       - key: JWT_SECRET_KEY
         sync: false

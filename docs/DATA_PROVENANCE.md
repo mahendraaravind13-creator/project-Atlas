@@ -26,7 +26,7 @@ The complete planted-case explanation is in [the dataset README](../data/synthet
 
 Original files are uploaded to project/document paths and recorded in PostgreSQL with a content hash. Parsing produces pages, metadata, persisted parents, `original_text`, and deterministic `contextual_text`. Original text is used for quotations and citations; contextual text is used for embedding and lexical retrieval. Each Qdrant payload includes `project_id`, document/chunk identifiers, page, section, revision/approval metadata, and index version.
 
-Gemini may rewrite queries, extract structured values, explain verified calculations, or generate evidence-grounded answers when `ATLAS_GEMINI_API_KEY` is configured. Deterministic evaluation uses local test doubles where documented; it is not evidence of live-model latency or quality.
+Groq may rewrite queries, extract structured values, explain verified calculations, or generate evidence-grounded answers when `ATLAS_GROQ_API_KEY` is configured. Deterministic evaluation uses local test doubles where documented; it is not evidence of live-model latency or quality.
 
 ## Derived outputs
 

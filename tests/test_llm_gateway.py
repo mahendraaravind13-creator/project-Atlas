@@ -6,7 +6,7 @@ from google.genai import errors
 from app.compliance import ComplianceExplainer
 from app.config import Settings
 from app.ingestion import IngestionError
-from app.llm import GeminiGateway
+from app.llm import GroqGateway
 from app.schedule import ScheduleNarrator
 
 
@@ -17,7 +17,7 @@ class FailingModels:
 
 @pytest.mark.asyncio
 async def test_invalid_api_key_becomes_safe_gateway_error() -> None:
-    gateway = GeminiGateway(Settings(gemini_api_key="invalid"))
+    gateway = GroqGateway(Settings(gemini_api_key="invalid"))
     gateway.client = SimpleNamespace(models=FailingModels())
 
     with pytest.raises(IngestionError) as caught:

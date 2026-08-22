@@ -20,7 +20,7 @@ from app.ingestion import (
     retrieve_chunks,
     retrieve_parent_chunks,
 )
-from app.llm import GeminiGateway
+from app.llm import GroqGateway
 
 
 class WorkflowState(TypedDict):
@@ -75,9 +75,9 @@ class Planner(Protocol):
     async def plan(self, project_id: uuid.UUID, query: str, history: list[ConversationMessage]) -> QueryPlan: ...
 
 
-class GeminiQueryPlanner:
-    def __init__(self, settings: Settings, gateway: GeminiGateway | None = None) -> None:
-        self.gateway = gateway or GeminiGateway(settings)
+class GroqQueryPlanner:
+    def __init__(self, settings: Settings, gateway: GroqGateway | None = None) -> None:
+        self.gateway = gateway or GroqGateway(settings)
 
     async def plan(self, project_id: uuid.UUID, query: str, history: list[ConversationMessage]) -> QueryPlan:
         fallback = _local_query_plan(project_id, query, history)
@@ -341,15 +341,15 @@ class Responder(Protocol):
     async def answer(self, question: str, context: ContextBundle) -> AnswerResult: ...
 
 
-class GeminiResponder:
-    def __init__(self, settings: Settings, gateway: GeminiGateway | None = None) -> None:
-        self.gateway = gateway or GeminiGateway(settings)
+class GroqResponder:
+    def __init__(self, settings: Settings, gateway: GroqGateway | None = None) -> None:
+        self.gateway = gateway or GroqGateway(settings)
 
     async def rewrite(self, question: str, history: list[ConversationMessage]) -> str:
         if not history:
             return question
         if not self.gateway.client:
-            raise IngestionError("generation_unavailable", "ATLAS_GEMINI_API_KEY is required for knowledge responses", 503)
+            raise IngestionError("generation_unavailable", "ATLAS_GROQ_API_KEY is required for knowledge responses", 503)
         context = "\n".join(f"{message.role}: {message.content}" for message in history[-6:])
         return await self._complete(
             "Rewrite the latest user question so it is standalone. Preserve intent and do not answer it.",
@@ -368,7 +368,7 @@ class GeminiResponder:
                 status="INSUFFICIENT_EVIDENCE",
             )
         if not self.gateway.client:
-            raise IngestionError("generation_unavailable", "ATLAS_GEMINI_API_KEY is required for knowledge responses", 503)
+            raise IngestionError("generation_unavailable", "ATLAS_GROQ_API_KEY is required for knowledge responses", 503)
         citation_map = {f"C{index}": chunk for index, chunk in enumerate(context.chunks, start=1)}
         evidence = [
             {
@@ -720,8 +720,8 @@ class KnowledgeService:
         postprocessor: PostRetrievalProcessor | None = None,
     ) -> None:
         self.settings, self.qdrant, self.embedder = settings, qdrant, embedder
-        self.responder = responder or GeminiResponder(settings)
-        self.planner = planner or GeminiQueryPlanner(settings)
+        self.responder = responder or GroqResponder(settings)
+        self.planner = planner or GroqQueryPlanner(settings)
         self.postprocessor = postprocessor or PostRetrievalProcessor(settings, parent_loader=self._load_parent)
         self.copilot_workflow = build_knowledge_workflow(self)
         self.rfi_workflow = build_rfi_workflow(self._retrieve_answered_rfis)
@@ -924,7 +924,7 @@ async def _ground_answer(
     generated: _GeneratedAnswer,
     citation_map: dict[str, ContextChunk],
     context: ContextBundle,
-    gateway: GeminiGateway,
+    gateway: GroqGateway,
 ) -> AnswerResult:
     known = set(citation_map)
     used = set(generated.citation_ids)
@@ -1011,7 +1011,7 @@ def _deterministic_support(
 
 
 async def _semantic_verify(
-    gateway: GeminiGateway,
+    gateway: GroqGateway,
     claims: list[_GeneratedClaim],
     uncertain: list[int],
     citation_map: dict[str, ContextChunk],

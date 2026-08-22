@@ -4,12 +4,12 @@ from app.config import Settings
 from app.ingestion import IngestionError
 
 
-class GeminiGateway:
+class GroqGateway:
     """
-    Compatibility wrapper.
+    Backend-only gateway to the Groq chat-completions API.
 
-    The project still imports GeminiGateway everywhere,
-    but internally we use Groq.
+    Callers supply system instructions plus untrusted content; the gateway
+    appends a fixed data-boundary preamble and never exposes credentials.
     """
 
     def __init__(self, settings: Settings):

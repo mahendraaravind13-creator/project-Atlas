@@ -29,7 +29,7 @@
 
 ## Known issues
 - Production migrations are not provisioned; `.env.example` enables local schema creation for the Compose database.
-- Live knowledge responses and optional narrative enrichment require `ATLAS_GEMINI_API_KEY`; scanned-PDF fallback also requires the system Tesseract binary.
+- Live knowledge responses and optional narrative enrichment require `ATLAS_GROQ_API_KEY`; scanned-PDF fallback also requires the system Tesseract binary.
 - `npm audit --omit=dev` reports a moderate Next bundled-PostCSS advisory with no compatible npm upgrade path reported by the registry.
 - Authentic dashboard screenshots and a recording still require a locally configured Gemini key and browser capture; static, clearly labelled measured backup visuals and a capture manifest are included.
 - Prompt-injection detection is a deterministic baseline; production deployment needs policy tuning, adversarial evaluation, and monitoring.

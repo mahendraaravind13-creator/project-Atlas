@@ -6,16 +6,16 @@
 - **Render:** create the API service from [`render.yaml`](render.yaml). Render supplies `PORT`; the start command runs `alembic upgrade head` before `uvicorn app.main:app --port $PORT`.
 - **Supabase:** provide the PostgreSQL connection as an async SQLAlchemy `DATABASE_URL` (`postgresql+asyncpg://…`); Supabase Auth and Storage variables remain backend-only.
 - **Qdrant Cloud:** configure `QDRANT_URL` and `QDRANT_API_KEY` on Render.
-- **Gemini:** FastAPI reads `GEMINI_API_KEY` and `GEMINI_MODEL`; the frontend never calls Gemini directly.
+- **Groq:** FastAPI reads `GROQ_API_KEY` and `GROQ_MODEL`; the frontend never calls Groq directly.
 
 ## Environment variables
 
 | Service | Variables |
 | --- | --- |
-| Render backend | `DATABASE_URL`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `QDRANT_URL`, `QDRANT_API_KEY`, `GEMINI_API_KEY`, `GEMINI_MODEL`, `JWT_SECRET_KEY`, `FRONTEND_URL` |
+| Render backend | `DATABASE_URL`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `QDRANT_URL`, `QDRANT_API_KEY`, `GROQ_API_KEY`, `GROQ_MODEL`, `JWT_SECRET_KEY`, `FRONTEND_URL` |
 | Vercel frontend | `NEXT_PUBLIC_API_URL`, `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` |
 
-Never put `DATABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `QDRANT_API_KEY`, `GEMINI_API_KEY`, or `JWT_SECRET_KEY` in Vercel. Do not create `NEXT_PUBLIC_GEMINI_API_KEY`.
+Never put `DATABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `QDRANT_API_KEY`, `GROQ_API_KEY`, or `JWT_SECRET_KEY` in Vercel. Do not create `NEXT_PUBLIC_GROQ_API_KEY`.
 
 ## Deploy commands
 

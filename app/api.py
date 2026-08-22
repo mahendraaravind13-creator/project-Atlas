@@ -73,7 +73,6 @@ from app.procurement import (
 )
 from app.schedule import ScheduleAnalysis, ScheduleScenario, ScheduleSnapshot
 from app.workflow import ConversationMessage, CopilotResult, QueryPlanResult, RfiResult
-from tests.test_hybrid_retrieval import payload
 
 router = APIRouter(prefix="/projects", tags=["projects"])
 evaluation_router = APIRouter(prefix="/api/evaluation", tags=["evaluation"])
