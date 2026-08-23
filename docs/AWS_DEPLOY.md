@@ -148,13 +148,30 @@ No AWS CLI needed.
    Docker network, and there is no application-level authentication in front of
    them.
 
-3. **Advanced details → User data.** Paste the contents of
-   [`deploy/bootstrap-ec2.sh`](../deploy/bootstrap-ec2.sh), first editing the
-   `REPO_URL` default at the top to point at your repository. It creates swap,
-   installs Docker and the Compose plugin, caps container log size, and clones
-   the repo to `/opt/atlas`. It deliberately does **not** start anything —
-   secrets must not go into user data, which any process on the instance can
-   read back from the metadata service.
+3. **Advanced details → User data.** Paste exactly this:
+
+   ```bash
+   #!/bin/bash
+   set -eux
+   dnf install -y git
+   curl -fsSL https://raw.githubusercontent.com/mahendraaravind13-creator/project-Atlas/main/deploy/bootstrap-ec2.sh -o /tmp/bootstrap.sh
+   bash /tmp/bootstrap.sh
+   ```
+
+   Fetching the script beats pasting it. Pasting 100+ lines from a Windows
+   checkout carries CRLF line endings into cloud-init, and every line then fails
+   with `$'
+': command not found`; the raw URL always serves LF.
+
+   Do **not** add `curl` to that `dnf install`. Amazon Linux 2023 ships
+   `curl-minimal`, which already provides the `curl` binary, and installing the
+   full `curl` package is a hard dnf conflict - with `set -e` the whole
+   bootstrap aborts before it does anything.
+
+   The script creates swap, installs Docker and the Compose plugin, caps
+   container log size, and clones the repo to `/opt/atlas`. It deliberately
+   does **not** start anything - secrets must not go into user data, which any
+   process on the instance can read back from the metadata service.
 
 4. **Launch**, then **allocate an Elastic IP** (EC2 → Elastic IPs → Allocate)
    and **associate it with the instance**. Without one, the public IP changes
@@ -330,6 +347,8 @@ dc exec -T postgres pg_dump -U atlas atlas | gzip > ~/atlas-backup.sql.gz
 | Disk full | `docker image prune -af`, and check `docker system df`. The deploy prunes automatically, but local `--build` runs accumulate layers. |
 | `POST /projects/{id}/copilot` returns 500 on a brand-new instance | Nothing has been ingested yet, so the Qdrant collection does not exist and the query fails with `Collection \`atlas_chunks\` doesn't exist`. Seed the demo (Part 5) or ingest a document first. |
 | First query after a deploy takes ~10s | Expected on `t3.micro`: the models are paging in from swap. Only the first one. |
+| cloud-init failed, no `/opt/atlas`, no swap | Check `sudo tail -50 /var/log/cloud-init-output.log`. A `dnf` conflict on `curl` vs `curl-minimal` is the usual cause - see the user-data note in Part 1. Re-run by hand: `curl -fsSL <raw bootstrap URL> -o /tmp/b.sh && sudo bash /tmp/b.sh`. |
+| Copilot answers return `INSUFFICIENT_EVIDENCE` with candidates in the trace | Retrieval worked and generation ran; the claim verifier rejected the answer as ungrounded (`missing_information` says so). This is the evidence guardrail, not a deployment fault - the deterministic engines are unaffected. |
 
 ## Security posture
 
