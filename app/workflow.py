@@ -119,6 +119,14 @@ class GroqQueryPlanner:
         except (ValidationError, ValueError, json.JSONDecodeError):
             logger.debug("planner_fallback reason=invalid_plan_payload")
             return fallback
+        except IngestionError as exc:
+            # A provider outage, rate limit or timeout must not take retrieval
+            # down: planning is the only LLM step in the path, and the
+            # deterministic plan is a complete substitute. Generation keeps
+            # surfacing the failure, because answering without the model would
+            # mean returning an uncited answer.
+            logger.warning("planner_fallback reason=%s", exc.code)
+            return fallback
         return _sanitize_query_plan(plan, project_id, query, history, fallback)
 
 

@@ -4,6 +4,7 @@ import uuid
 import pytest
 
 from app.config import Settings
+from app.ingestion import IngestionError
 from app.workflow import ConversationMessage, GroqQueryPlanner, KnowledgeService
 
 
@@ -98,3 +99,28 @@ async def test_schedule_query_routes_to_existing_schedule_service() -> None:
     assert route.plan.intent == "schedule_query"
     assert route.service == "schedule"
     assert route.endpoint == f"/projects/{project_id}/schedule/analysis"
+
+
+@pytest.mark.asyncio
+async def test_provider_outage_falls_back_to_the_deterministic_plan() -> None:
+    """
+    A rate limit or outage must not take retrieval down. Planning is the only
+    LLM step in the retrieval path and the local plan is a full substitute, so
+    the request continues instead of returning 502.
+    """
+
+    class OutageGateway:
+        client = object()
+
+        async def generate(self, *_args, **_kwargs):
+            raise IngestionError("model_gateway_error", "AI provider request failed", 502)
+
+    project_id = uuid.uuid4()
+    plan = await GroqQueryPlanner(Settings(), OutageGateway()).plan(
+        project_id, "What is the minimum UPS-A battery autonomy?", []
+    )
+
+    assert plan.project_id == project_id
+    assert plan.standalone_query == "What is the minimum UPS-A battery autonomy?"
+    assert plan.equipment_ids == ["UPS-A"]
+    assert plan.intent == "knowledge_query"
