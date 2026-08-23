@@ -2,6 +2,11 @@
 
 ## Security and tenancy
 
+- Authentication and per-project roles exist (`ATLAS_AUTH_ENABLED`) but ship **disabled by default**, so an unconfigured deployment is still open to anyone who can reach the URL. With it off, `project_id` remains data scoping rather than authorization.
+- Tokens are signed and short-lived but cannot be revoked. Deactivating a user takes effect immediately because the account is re-read on every request; an issued token otherwise remains valid until it expires.
+- `POST /auth/users` is gated on holding `admin` on any project, not on a platform-wide administrator flag. In a genuinely multi-tenant deployment that is too coarse: an admin of one project can create accounts.
+- There is no password reset flow, no rate limiting on `/auth/login`, and no multi-factor support. Repeated login attempts are logged but not throttled.
+
 - Authentication, RBAC, tenant quotas, signed URLs, and production tenant isolation are not implemented. `project_id` filters are application-level isolation, not an authorization system.
 - Local demo credentials do not exist. The service must not be exposed to the public internet as configured.
 - Prompt-injection checks and an untrusted-evidence boundary exist, but adversarial coverage and operational policy tuning are incomplete.

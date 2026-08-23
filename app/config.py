@@ -84,6 +84,29 @@ class Settings(BaseSettings):
         ),
     )
 
+    # Defaults to False, and that is a deliberate, temporary choice rather than a
+    # recommendation. Flipping it on turns every project route into 401 for any
+    # caller without a token, which would take down a deployment that is already
+    # serving - including a demo whose URL has been handed out. Turning it on is
+    # therefore an explicit operator action paired with creating the first
+    # account (scripts/create_user.py) and pointing the dashboard at a login.
+    #
+    # There is no safe long-term reading of False: project_id is data scoping,
+    # not authorization, so with this off anyone who can reach the URL can read
+    # and write every project. Set it True for anything carrying real content.
+    auth_enabled: bool = Field(
+        default=False,
+        validation_alias=AliasChoices(
+            "ATLAS_AUTH_ENABLED",
+            "AUTH_ENABLED",
+        ),
+    )
+
+    # Tokens cannot be revoked, so the lifetime is the revocation window. Eight
+    # hours covers a working session; a deactivated user is rejected sooner than
+    # that because app.auth re-reads the row on every request.
+    auth_token_ttl_seconds: int = Field(default=8 * 60 * 60, gt=0)
+
     # "sentence_transformer" gives semantic retrieval. "local_hash" is a
     # deterministic, offline, non-semantic fallback used by the evaluation
     # harness and tests; it will not match paraphrases.
