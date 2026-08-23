@@ -217,7 +217,7 @@ export function SignedInDashboard({ user, onSignOut }: { user: AuthUser; onSignO
 
   return <main className="mesh min-h-screen bg-canvas">
     <header className="sticky top-0 z-30 border-b border-navy-hi/60 bg-navy/95 text-white shadow-card backdrop-blur">
-      <div className="mx-auto flex max-w-shell items-center justify-between gap-3 px-4 py-2.5 sm:px-6">
+      <div className="mx-auto flex max-w-[1400px] items-center gap-3 px-4 py-2 sm:px-6">
         <div className="flex min-w-0 items-center gap-3">
           {/* Below lg the sidebar is an overlay, so it needs a trigger. */}
           <button
@@ -241,10 +241,12 @@ export function SignedInDashboard({ user, onSignOut }: { user: AuthUser; onSignO
           </div>
         </div>
 
-        <div className="flex min-w-0 items-center gap-2">
-          <span className="hidden sm:inline"><SyntheticBadge /></span>
+        {/* ml-auto keeps the control cluster together instead of letting
+            justify-between fling it to the far edge of a wide screen. */}
+        <div className="ml-auto flex min-w-0 items-center gap-1.5">
+          <span className="hidden xl:inline"><SyntheticBadge /></span>
           <span
-            className="hidden items-center gap-1.5 rounded-full bg-white/10 px-2.5 py-1 font-mono text-label uppercase text-sky-100 ring-1 ring-inset ring-white/15 sm:inline-flex"
+            className="hidden items-center gap-1.5 rounded-full bg-white/10 px-2 py-1 font-mono text-label uppercase text-sky-100 ring-1 ring-inset ring-white/15 lg:inline-flex"
             title={health ? Object.entries(health).map(([k, v]) => `${k}: ${v}`).join(" · ") : "Checking API"}
           >
             <span aria-hidden="true" className={cn("h-1.5 w-1.5 rounded-full", healthy ? "bg-status-good" : health ? "bg-status-warning" : "bg-slate-400")} />
@@ -252,7 +254,7 @@ export function SignedInDashboard({ user, onSignOut }: { user: AuthUser; onSignO
           </span>
 
           <Select
-            className="h-8 w-36 min-w-0 shrink sm:w-48"
+            className="h-8 w-32 min-w-0 shrink sm:w-44"
             aria-label="Active project"
             value={projectId}
             onChange={(event) => setProjectId(event.target.value)}
@@ -262,7 +264,7 @@ export function SignedInDashboard({ user, onSignOut }: { user: AuthUser; onSignO
           </Select>
 
           {onSignOut ? (
-            <span className="hidden max-w-[14rem] truncate font-mono text-label text-sky-300/80 xl:inline" title={user.email}>
+            <span className="hidden max-w-[11rem] truncate font-mono text-label text-sky-300/80 2xl:inline" title={user.email}>
               {user.email}
             </span>
           ) : null}
@@ -320,7 +322,7 @@ export function SignedInDashboard({ user, onSignOut }: { user: AuthUser; onSignO
       </div>
     ) : null}
 
-    <div className="mx-auto grid max-w-shell gap-5 px-4 pb-10 pt-5 sm:px-6 lg:grid-cols-[220px_minmax(0,1fr)]">
+    <div className="mx-auto grid max-w-[1400px] gap-5 px-4 pb-10 pt-5 sm:px-6 lg:grid-cols-[208px_minmax(0,1fr)]">
       <aside className="hidden h-fit rounded-xl border border-slate-200/90 bg-white p-2.5 shadow-card lg:sticky lg:top-[4.25rem] lg:block">
         <p className="px-2 pb-2 font-mono text-label uppercase text-slate-400">Workspace</p>
         {nav}
@@ -679,7 +681,7 @@ function DigitalThreadFlow({ thread }: { thread: DigitalThread }) {
     ["Commissioning tests", `${thread.commissioning_status.length} steps`, `${thread.commissioning_status.filter((item) => item.status === "PASS").length} passed`],
     ["Mitigation", textValue(mitigation, "description", "Not simulated"), impact.critical_path_exposure_days === undefined ? "pending" : `${impact.critical_path_exposure_days}d residual exposure`],
   ];
-  return <Card className="scroll-x"><div className="mb-4 flex items-center justify-between"><div><SyntheticBadge /><h3 className="mt-2 text-xl font-semibold">{thread.equipment.equipment_id} digital thread</h3></div><Badge tone={thread.open_ncrs.length ? "red" : "green"}>{thread.open_ncrs.length} open NCRs</Badge></div><div className="grid min-w-[1000px] grid-cols-7 gap-2.5">{stages.map(([label, value, detail], index) => <div className="relative rounded-lg border border-slate-200 bg-slate-50/70 p-3" key={label}><p className="font-mono text-label uppercase text-slate-500">{label}</p><p className="mt-2 break-words text-sm font-semibold leading-5 text-ink">{value}</p><p className="mt-2 text-xs leading-5 text-muted">{detail}</p>{index < stages.length - 1 && <span aria-hidden className="absolute -right-3 top-1/2 z-10 -translate-y-1/2 rounded-full bg-navy px-1.5 text-[0.7rem] leading-5 text-white">→</span>}</div>)}</div></Card>;
+  return <Card className="scroll-x"><div className="mb-4 flex items-center justify-between"><div><SyntheticBadge /><h3 className="mt-2 text-xl font-semibold">{thread.equipment.equipment_id} digital thread</h3></div><Badge tone={thread.open_ncrs.length ? "red" : "green"}>{thread.open_ncrs.length} open NCRs</Badge></div><ol className="flex gap-3 pb-1">{stages.map(([label, value, detail], index) => <li className="relative flex w-[190px] shrink-0 flex-col rounded-lg border border-slate-200 bg-white p-3 shadow-card transition-base ease-settle hover:-translate-y-px hover:shadow-card-hover motion-reduce:hover:translate-y-0" key={label}><span className="flex items-center gap-1.5"><span aria-hidden className="h-1.5 w-1.5 rounded-full bg-viz-400" /><span className="font-mono text-label uppercase text-muted">{label}</span></span><span className="mt-2 break-words text-sm font-semibold leading-5 text-ink">{value}</span><span className="mt-1.5 text-xs leading-5 text-muted">{detail}</span>{index < stages.length - 1 && <span aria-hidden className="absolute -right-[13px] top-1/2 z-10 grid h-4 w-4 -translate-y-1/2 place-items-center rounded-full bg-navy text-[0.6rem] leading-none text-white">→</span>}</li>)}</ol></Card>;
 }
 
 function textValue(value: Record<string, unknown> | undefined, key: string, fallback: string) { const item = value?.[key]; return typeof item === "string" || typeof item === "number" ? String(item) : fallback; }

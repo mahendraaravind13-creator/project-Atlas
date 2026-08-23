@@ -103,7 +103,7 @@ export function StoryHero({ onEnter, entering }: { onEnter: () => void; entering
         }}
       />
 
-      <div className="relative mx-auto max-w-shell px-6 pb-20 pt-16 sm:pb-24 sm:pt-24">
+      <div className="relative mx-auto max-w-6xl px-6 pb-16 pt-16 sm:pb-20 sm:pt-20">
         <Reveal>
           <span className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 font-mono text-label uppercase text-sky-200 ring-1 ring-inset ring-white/15">
             <span aria-hidden="true" className="relative flex h-1.5 w-1.5">
@@ -147,22 +147,24 @@ export function StoryHero({ onEnter, entering }: { onEnter: () => void; entering
         </Reveal>
 
         {/* Headline figures from the seeded scenario. */}
-        <Stagger className="mt-14 grid grid-cols-2 gap-px overflow-hidden rounded-xl bg-white/10 sm:grid-cols-4" step={90}>
-          {[
-            { value: 35, unit: " days", label: "Forecast delivery delay" },
-            { value: 28, unit: " days", label: "Critical-path exposure" },
-            { value: 45, unit: "", label: "Commissioning readiness" },
-            { value: 27, unit: "", label: "Documents in evidence" },
-          ].map((item) => (
-            <div key={item.label} className="bg-navy/60 px-4 py-5 backdrop-blur-sm">
-              <p className="text-figure font-semibold leading-none text-white">
-                <CountUp value={item.value} />
-                <span className="text-lg font-medium text-sky-300/80">{item.unit}</span>
-              </p>
-              <p className="mt-2 font-mono text-label uppercase text-sky-200/70">{item.label}</p>
-            </div>
-          ))}
-        </Stagger>
+        <Reveal delay={300}>
+          <dl className="mt-10 flex max-w-3xl flex-wrap gap-x-8 gap-y-4 border-t border-white/15 pt-5">
+            {[
+              { value: 35, unit: "d", label: "Delivery delay" },
+              { value: 28, unit: "d", label: "Critical-path exposure" },
+              { value: 45, unit: "", label: "Readiness score" },
+              { value: 27, unit: "", label: "Documents cited" },
+            ].map((item) => (
+              <div key={item.label}>
+                <dd className="text-2xl font-semibold leading-none text-white">
+                  <CountUp value={item.value} />
+                  <span className="text-base font-medium text-sky-300/80">{item.unit}</span>
+                </dd>
+                <dt className="mt-1 font-mono text-label uppercase text-sky-200/70">{item.label}</dt>
+              </div>
+            ))}
+          </dl>
+        </Reveal>
       </div>
     </section>
   );
@@ -187,7 +189,7 @@ export function StoryChain() {
   const reached = Math.min(CHAIN.length - 1, Math.floor(progress * CHAIN.length * 1.15));
 
   return (
-    <section id="chain" ref={ref} className="mx-auto max-w-shell scroll-mt-20 px-6 py-20 sm:py-28">
+    <section id="chain" ref={ref} className="mx-auto max-w-6xl scroll-mt-20 px-6 py-16 sm:py-20">
       <Reveal className="max-w-prose">
         <p className="font-mono text-label uppercase text-signal">The impact chain</p>
         <h2 className="mt-2 text-display-sm font-semibold tracking-tight text-ink sm:text-display">
@@ -200,7 +202,7 @@ export function StoryChain() {
         </p>
       </Reveal>
 
-      <div className="mt-12 grid gap-10 lg:grid-cols-[minmax(0,1fr)_320px]">
+      <div className="mt-10 grid gap-8 lg:grid-cols-[minmax(0,1fr)_240px]">
         <ol className="space-y-3">
           {CHAIN.map((step, index) => {
             const isOpen = open === step.key;
@@ -235,7 +237,14 @@ export function StoryChain() {
                           {step.metric.label}
                         </Badge>
                       </span>
-                      <span className="mt-1 block text-base font-semibold text-ink">{step.headline}</span>
+                      <span className="mt-1 flex flex-wrap items-baseline gap-x-2.5 gap-y-0.5">
+                        <span className="text-base font-semibold text-ink">{step.headline}</span>
+                        <span className="tabular text-base font-semibold text-ink">
+                          <CountUp value={step.metric.value} />
+                          <span className="text-sm font-medium text-muted">{step.metric.unit}</span>
+                        </span>
+                        <span className="text-xs text-muted">{step.metric.target}</span>
+                      </span>
                       <span
                         className={cn(
                           "grid transition-[grid-template-rows,opacity] duration-base ease-settle",
@@ -250,13 +259,6 @@ export function StoryChain() {
                       </span>
                     </span>
 
-                    <span className="shrink-0 text-right">
-                      <span className="tabular block text-xl font-semibold leading-none text-ink">
-                        <CountUp value={step.metric.value} />
-                        <span className="text-sm font-medium text-muted">{step.metric.unit}</span>
-                      </span>
-                      <span className="mt-1 block text-xs text-muted">{step.metric.target}</span>
-                    </span>
                   </button>
                 </Card>
               </Reveal>
@@ -325,7 +327,7 @@ const GUARDRAILS = [
 export function StoryGuardrails() {
   return (
     <section className="border-y border-hairline bg-white">
-      <div className="mx-auto max-w-shell px-6 py-20 sm:py-24">
+      <div className="mx-auto max-w-6xl px-6 py-16 sm:py-20">
         <Reveal className="max-w-prose">
           <p className="font-mono text-label uppercase text-signal">Guardrails</p>
           <h2 className="mt-2 text-display-sm font-semibold tracking-tight text-ink sm:text-display">
@@ -337,9 +339,9 @@ export function StoryGuardrails() {
           </p>
         </Reveal>
 
-        <Stagger className="mt-12 grid gap-4 sm:grid-cols-2" step={80}>
+        <Stagger className="mt-10 grid gap-4 sm:grid-cols-2" step={80}>
           {GUARDRAILS.map((item) => (
-            <Card key={item.title} interactive className="group h-full">
+            <Card key={item.title} interactive className="group h-full p-5">
               <div className="flex items-start gap-3">
                 <span
                   aria-hidden="true"
@@ -364,7 +366,7 @@ export function StoryClose({ onEnter, entering }: { onEnter: () => void; enterin
   return (
     <section className="relative isolate overflow-hidden bg-navy-bloom text-white">
       <span aria-hidden="true" className="absolute inset-0 animate-shimmer bg-signal-sheen opacity-40" />
-      <div className="relative mx-auto max-w-shell px-6 py-20 text-center sm:py-24">
+      <div className="relative mx-auto max-w-6xl px-6 py-16 text-center sm:py-20">
         <Reveal>
           <h2 className="mx-auto max-w-3xl text-display-sm font-semibold sm:text-display">
             The chain is inspectable. Go and check it.
