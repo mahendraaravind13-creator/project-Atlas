@@ -107,21 +107,33 @@ jobs:
           test -n "$EC2_HOST" || { echo "::error::secret EC2_HOST is not set"; exit 1; }
 
           install -m 600 /dev/null key.pem
-          # tr -d '\r' is not paranoia. The secret is normally pasted from a
-          # Windows machine, where the clipboard normalises line endings to
-          # CRLF even when the .pem on disk is LF-clean. OpenSSH then fails
-          # with `Load key "key.pem": error in libcrypto` and falls through to
-          # "Permission denied (publickey)", which reads like a wrong or
-          # unauthorised key rather than the byte-level problem it actually is.
+
+          # EC2_SSH_KEY may hold either the raw .pem or a single-line base64
+          # encoding of it. Both are accepted because the multi-line form keeps
+          # arriving corrupted: pasting a .pem from Windows normalises the line
+          # endings to CRLF, and a partial selection silently drops lines. Either
+          # way OpenSSH reports "error in libcrypto" and then "Permission denied
+          # (publickey)", which reads like the wrong key rather than damaged
+          # bytes. A base64 one-liner has no newlines to mangle and no ambiguous
+          # end, so it survives any clipboard.
+          #
+          # tr -d '\r' still applies to the raw path, for a secret that is
+          # otherwise intact but CRLF-terminated.
           printf '%s\n' "$SSH_KEY" | tr -d '\r' > key.pem
 
-          # Fail on a malformed secret here, with a message that says what to
-          # do, rather than letting ssh report it as an auth failure.
           if ! ssh-keygen -y -f key.pem >/dev/null 2>&1; then
-            echo "::error::EC2_SSH_KEY is not a usable private key. Re-add the secret with the COMPLETE .pem contents, including the -----BEGIN----- and -----END----- lines."
-            exit 1
+            # Not a usable PEM. Try interpreting it as base64 before giving up.
+            if printf '%s' "$SSH_KEY" | tr -d '\r\n \t' | base64 -d > key.pem 2>/dev/null \
+               && ssh-keygen -y -f key.pem >/dev/null 2>&1; then
+              echo "private key parsed OK (decoded from base64)"
+            else
+              echo "::error::EC2_SSH_KEY is not a usable private key. Store it as a single-line base64 value instead - on Windows: [Convert]::ToBase64String([IO.File]::ReadAllBytes(\"\$env:USERPROFILE\Downloads\atlas.pem\")) | Set-Clipboard - or re-paste the COMPLETE .pem including its -----BEGIN----- and -----END----- lines."
+              exit 1
+            fi
+          else
+            echo "private key parsed OK"
           fi
-          echo "private key parsed OK"
+          chmod 600 key.pem
 
           # The variables are prepended to the script on STDIN rather than
           # passed as ssh arguments, so the registry token never shows up in
