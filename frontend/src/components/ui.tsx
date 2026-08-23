@@ -9,7 +9,7 @@ const field =
 
 export function Card({ className, children }: PropsWithChildren<{ className?: string }>) {
   return (
-    <section className={cn("rounded-xl border border-slate-200/90 bg-white p-5 shadow-card", className)}>
+    <section className={cn("rounded-xl border border-slate-200/90 bg-white p-4 shadow-card", className)}>
       {children}
     </section>
   );
