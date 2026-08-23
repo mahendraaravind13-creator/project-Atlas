@@ -167,7 +167,7 @@ export function Meter({
         </span>
       </div>
       <div
-        className="h-2 w-full overflow-hidden rounded-full bg-viz-100"
+        className="h-2.5 w-full overflow-hidden rounded-full bg-viz-100"
         role="meter"
         aria-valuenow={Math.round(value)}
         aria-valuemin={0}
@@ -301,12 +301,15 @@ export function ImpactChain({
   activeIndex?: number;
   onSelect?: (index: number) => void;
 }) {
-  const tones = {
-    neutral: "border-slate-200 bg-white",
-    good: "border-emerald-200 bg-emerald-50/60",
-    warning: "border-amber-200 bg-amber-50/60",
-    serious: "border-orange-200 bg-orange-50/60",
-    critical: "border-rose-200 bg-rose-50/60",
+  // White cards with a coloured top rule, rather than tinted fills. Six pale
+  // washes sitting side by side read as muddy and make the row look like a
+  // warning in itself; a rule carries the same state on a clean surface.
+  const accents = {
+    neutral: "bg-slate-300",
+    good: "bg-status-good",
+    warning: "bg-status-warning",
+    serious: "bg-status-serious",
+    critical: "bg-status-critical",
   };
   const pips = {
     neutral: "bg-slate-300",
@@ -317,7 +320,7 @@ export function ImpactChain({
   };
 
   return (
-    <ol className="relative grid gap-3 md:grid-cols-3 xl:grid-cols-6">
+    <ol className="relative grid gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6">
       {stages.map((stage, index) => {
         const tone = stage.tone ?? "neutral";
         const active = activeIndex === index;
@@ -329,19 +332,19 @@ export function ImpactChain({
             {index < stages.length - 1 ? (
               <span
                 aria-hidden="true"
-                className="absolute -right-3 top-1/2 z-0 hidden h-px w-3 bg-slate-300 xl:block"
+                className="absolute -right-3 top-1/2 z-0 hidden h-px w-3 bg-slate-300 2xl:block"
               />
             ) : null}
             <Tag
               type={onSelect ? "button" : undefined}
               onClick={onSelect ? () => onSelect(index) : undefined}
               className={cn(
-                "relative z-10 flex h-full w-full flex-col rounded-lg border p-3 text-left transition-base ease-settle",
-                tones[tone],
+                "relative z-10 flex h-full w-full flex-col overflow-hidden rounded-lg border border-slate-200 bg-white p-3 pt-3.5 text-left shadow-card transition-base ease-settle",
                 onSelect && "hover:-translate-y-px hover:shadow-card-hover motion-reduce:hover:translate-y-0",
                 active && "ring-2 ring-signal/40",
               )}
             >
+              <span aria-hidden="true" className={cn("absolute inset-x-0 top-0 h-[3px]", accents[tone])} />
               <span className="flex items-center gap-1.5">
                 <span aria-hidden="true" className={cn("h-1.5 w-1.5 rounded-full", pips[tone])} />
                 <span className="font-mono text-label uppercase text-muted">

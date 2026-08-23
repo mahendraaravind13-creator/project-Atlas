@@ -21,8 +21,10 @@ describe("Atlas demo dashboard", () => {
       "Compliance findings",
       "Impact Chain",
       "Mitigation simulator",
-      "Commissioning readiness",
-      "Supply-chain simulation",
+      // Shortened in the rail so it does not truncate at 208px; each view's
+      // own heading still carries the full name.
+      "Commissioning",
+      "Supply chain",
       "Evidence Dashboard",
       "Evaluation",
     ]) expect(html).toContain(label);
