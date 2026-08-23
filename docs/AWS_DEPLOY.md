@@ -140,9 +140,30 @@ No AWS CLI needed.
 
    | Type | Port | Source | Why |
    | --- | --- | --- | --- |
-   | SSH | 22 | **My IP** | Not `0.0.0.0/0` — this box has no application auth |
+   | SSH | 22 | **My IP**, or Anywhere if you want auto-deploy — see below | |
    | HTTP | 80 | Anywhere | Also how Let's Encrypt validates the certificate |
    | HTTPS | 443 | Anywhere | |
+
+   **SSH source and auto-deploy pull in opposite directions.** `My IP` is the
+   safer setting, but the GitHub Actions deploy in Part 4 connects from rotating
+   Azure runner addresses, so it will fail with
+   `ssh: connect to host ... port 22: Connection timed out`. Allowing GitHub's
+   published ranges instead is not workable: there are thousands of CIDRs, they
+   rotate, and a security group caps at 60 rules.
+
+   So pick one:
+
+   - **Manual deploys only** - keep `My IP`. Deploy by hand over SSH; the
+     workflow's build stage still publishes images.
+   - **Auto-deploy** - set SSH to `0.0.0.0/0`. Amazon Linux 2023 ships with
+     `PasswordAuthentication no`, so the only way in is your ED25519 key and
+     there is no password to brute-force. The real cost is scanner noise in
+     the logs. Tighten it back afterwards.
+   - **Neither compromise** - drive the rollout through AWS SSM Session Manager
+     instead of SSH. No inbound port at all, but it needs an IAM instance
+     profile and AWS credentials in GitHub secrets. A self-hosted runner on the
+     instance also avoids inbound SSH, but needs ~200 MB and will not fit
+     alongside the API on `t3.micro`.
 
    Do **not** open 5432 or 6333. Postgres and Qdrant are reachable only on the
    Docker network, and there is no application-level authentication in front of
@@ -347,6 +368,7 @@ dc exec -T postgres pg_dump -U atlas atlas | gzip > ~/atlas-backup.sql.gz
 | Disk full | `docker image prune -af`, and check `docker system df`. The deploy prunes automatically, but local `--build` runs accumulate layers. |
 | `POST /projects/{id}/copilot` returns 500 on a brand-new instance | Nothing has been ingested yet, so the Qdrant collection does not exist and the query fails with `Collection \`atlas_chunks\` doesn't exist`. Seed the demo (Part 5) or ingest a document first. |
 | First query after a deploy takes ~10s | Expected on `t3.micro`: the models are paging in from swap. Only the first one. |
+| Deploy job fails `ssh: connect to host *** port 22: Connection timed out` | The security group allows SSH from your IP only, and the runner is not your IP. See the SSH source note in Part 1. The build stage still succeeded, so the images are published. |
 | cloud-init failed, no `/opt/atlas`, no swap | Check `sudo tail -50 /var/log/cloud-init-output.log`. A `dnf` conflict on `curl` vs `curl-minimal` is the usual cause - see the user-data note in Part 1. Re-run by hand: `curl -fsSL <raw bootstrap URL> -o /tmp/b.sh && sudo bash /tmp/b.sh`. |
 | Copilot answers return `INSUFFICIENT_EVIDENCE` with candidates in the trace | Retrieval worked and generation ran; the claim verifier rejected the answer as ungrounded (`missing_information` says so). This is the evidence guardrail, not a deployment fault - the deterministic engines are unaffected. |
 
