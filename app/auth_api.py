@@ -11,11 +11,12 @@ import logging
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth import (
+    Email,
     LoginRequest,
     LoginResponse,
     MembershipResponse,
@@ -114,7 +115,7 @@ async def me(
 
 
 class UserCreate(BaseModel):
-    email: EmailStr
+    email: Email
     password: str = Field(min_length=12, max_length=1024)
     # Optional first grant, so bootstrapping an account and its access is one call.
     project_id: uuid.UUID | None = None
@@ -149,7 +150,7 @@ async def create_user(
 
 
 class MemberCreate(BaseModel):
-    email: EmailStr
+    email: Email
     role: Role = "viewer"
 
 

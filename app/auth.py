@@ -35,11 +35,12 @@ import logging
 import secrets
 import time
 import uuid
-from typing import Literal
+from typing import Annotated, Literal
 
 from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, Field
+from pydantic.functional_validators import AfterValidator
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -47,6 +48,27 @@ from app.config import Settings, get_settings
 from app.models import ProjectMember, User
 
 logger = logging.getLogger("atlas.auth")
+
+def _normalise_email(value: str) -> str:
+    """
+    Normalise and sanity-check an address without pulling in a dependency.
+
+    pydantic's EmailStr needs the separate `email-validator` package. That was
+    installed on the development machine but absent from requirements.lock, so
+    importing this module succeeded locally and failed in CI - the same shape of
+    fault as the unmarked pywin32 pin. Since these addresses are only ever
+    compared against rows this application created, full RFC 5322 parsing buys
+    nothing: what matters is that the value is trimmed, lowercased so lookups
+    are stable, and obviously an address.
+    """
+    cleaned = value.strip().lower()
+    local, _, domain = cleaned.partition("@")
+    if not local or not domain or "." not in domain or any(c.isspace() for c in cleaned):
+        raise ValueError("value is not a valid email address")
+    return cleaned
+
+
+Email = Annotated[str, AfterValidator(_normalise_email)]
 
 Role = Literal["viewer", "reviewer", "admin"]
 
@@ -210,7 +232,7 @@ _bearer = HTTPBearer(auto_error=False)
 
 
 class LoginRequest(BaseModel):
-    email: EmailStr
+    email: Email
     password: str = Field(min_length=1, max_length=1024)
 
 

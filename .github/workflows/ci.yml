@@ -39,6 +39,13 @@ jobs:
           pip install -r requirements-dev.lock
           pip install -e . --no-deps
 
+      # Guards a defect that has shipped twice, invisible locally and fatal here:
+      # an import satisfied by the developer's environment but absent from the
+      # lock. pywin32 was pinned without a platform marker; email-validator was
+      # needed by pydantic.EmailStr and never pinned at all.
+      - name: Verify every import is pinned in the lock
+        run: python scripts/check_locked_imports.py --lock requirements-dev.lock
+
       # Guards the defect that shipped once already: app/ imported from tests/,
       # which is absent in a packaged install, so the app died at import.
       - name: Verify the app imports without the test package
