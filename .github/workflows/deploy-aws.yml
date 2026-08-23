@@ -107,7 +107,21 @@ jobs:
           test -n "$EC2_HOST" || { echo "::error::secret EC2_HOST is not set"; exit 1; }
 
           install -m 600 /dev/null key.pem
-          printf '%s\n' "$SSH_KEY" > key.pem
+          # tr -d '\r' is not paranoia. The secret is normally pasted from a
+          # Windows machine, where the clipboard normalises line endings to
+          # CRLF even when the .pem on disk is LF-clean. OpenSSH then fails
+          # with `Load key "key.pem": error in libcrypto` and falls through to
+          # "Permission denied (publickey)", which reads like a wrong or
+          # unauthorised key rather than the byte-level problem it actually is.
+          printf '%s\n' "$SSH_KEY" | tr -d '\r' > key.pem
+
+          # Fail on a malformed secret here, with a message that says what to
+          # do, rather than letting ssh report it as an auth failure.
+          if ! ssh-keygen -y -f key.pem >/dev/null 2>&1; then
+            echo "::error::EC2_SSH_KEY is not a usable private key. Re-add the secret with the COMPLETE .pem contents, including the -----BEGIN----- and -----END----- lines."
+            exit 1
+          fi
+          echo "private key parsed OK"
 
           # The variables are prepended to the script on STDIN rather than
           # passed as ssh arguments, so the registry token never shows up in
