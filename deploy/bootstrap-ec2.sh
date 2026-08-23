@@ -12,7 +12,7 @@
 
 set -euo pipefail
 
-REPO_URL="${REPO_URL:-https://github.com/CHANGE-ME/ET_HACKTON_MAIN.git}"
+REPO_URL="${REPO_URL:-https://github.com/mahendraaravind13-creator/project-Atlas.git}"
 APP_DIR="${APP_DIR:-/opt/atlas}"
 SWAP_GB="${SWAP_GB:-4}"
 
