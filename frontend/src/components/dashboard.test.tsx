@@ -28,8 +28,10 @@ describe("Atlas demo dashboard", () => {
       "Evidence Dashboard",
       "Evaluation",
     ]) expect(html).toContain(label);
-    expect(html).toContain("Reset Demo");
-    expect(html).toContain("Synthetic simulation");
+    // Reset and sign-out moved into the account menu, which is closed on first
+    // render - so what must be present is the trigger that reaches them, not
+    // the controls themselves.
+    expect(html).toContain('aria-haspopup="menu"');
     expect(html).not.toContain("% hours saved");
   });
 
@@ -56,19 +58,21 @@ describe("Atlas demo dashboard", () => {
     const html = renderToStaticMarkup(<Dashboard />);
     expect(html).toContain("Connecting to Project Atlas");
     // The workspace must not leak out before the caller is identified.
-    expect(html).not.toContain("Reset Demo");
+    expect(html).not.toContain("Project overview");
   });
 
   it("offers a sign-out control only when a real account is signed in", () => {
+    // The account trigger names the signed-in user; sign-out itself lives in the
+    // menu behind it.
     const signedIn = { id: "1", email: "member@example.com", is_active: true };
     const withAuth = renderToStaticMarkup(<SignedInDashboard user={signedIn} onSignOut={() => {}} />);
-    expect(withAuth).toContain("Sign out");
-    expect(withAuth).toContain("member@example.com");
+    expect(withAuth).toContain("member");
+    expect(withAuth).toContain('aria-haspopup="menu"');
 
-    // With authentication disabled there is no session to end, so the control
-    // is hidden rather than shown and broken.
+    // With authentication disabled there is no session to end, so the trigger
+    // reads as a generic account rather than naming a user that does not exist.
     const withoutAuth = renderToStaticMarkup(<SignedInDashboard user={anonymous} onSignOut={null} />);
-    expect(withoutAuth).not.toContain("anonymous (authentication disabled)");
+    expect(withoutAuth).toContain("Account");
   });
 
   it("keeps the workspace reachable when the API is unreachable", () => {
@@ -77,8 +81,8 @@ describe("Atlas demo dashboard", () => {
     // and reports the failure per panel, as it did before sign-in existed.
     const unreachable = { id: "0", email: "anonymous (authentication unavailable)", is_active: true };
     const html = renderToStaticMarkup(<SignedInDashboard user={unreachable} onSignOut={null} />);
-    expect(html).toContain("Reset Demo");
     expect(html).toContain("Project overview");
+    expect(html).toContain("Compliance findings");
   });
 
   it("renders the sign-in form with labelled credential fields", () => {

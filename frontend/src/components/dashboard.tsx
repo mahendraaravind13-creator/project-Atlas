@@ -170,6 +170,7 @@ export function SignedInDashboard({ user, onSignOut }: { user: AuthUser; onSignO
   // The sidebar becomes an overlay below lg. Held here rather than in the aside
   // so selecting a destination can close it.
   const [navOpen, setNavOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
 
   const refreshProjects = async () => {
     const items = await api.projects(); setProjects(items); setProjectId((current) => current || items[0]?.id || "");
@@ -217,87 +218,150 @@ export function SignedInDashboard({ user, onSignOut }: { user: AuthUser; onSignO
 
   return <main className="mesh min-h-screen bg-canvas">
     <header className="sticky top-0 z-30 border-b border-navy-hi/60 bg-navy/95 text-white shadow-card backdrop-blur">
+      {/*
+        Previously six mismatched chips crowded the right edge: an amber badge, a
+        dark status pill, a white select, a monospace email and two buttons of
+        equal weight. Nothing led, and the loudest thing on a navy bar was an
+        amber pill that is not the point of the page.
+
+        Now there are three zones - identity, the project being worked on, and
+        one account menu. Everything occasional (email, health detail, the
+        synthetic-data note, sign out, reset) lives inside the menu, so the bar
+        carries only what is true all the time.
+      */}
       <div className="mx-auto flex max-w-[1400px] items-center gap-3 px-4 py-2 sm:px-6">
-        <div className="flex min-w-0 items-center gap-3">
-          {/* Below lg the sidebar is an overlay, so it needs a trigger. */}
-          <button
-            type="button"
-            onClick={() => setNavOpen(true)}
-            aria-label="Open workspace navigation"
-            aria-expanded={navOpen}
-            className="grid h-8 w-8 shrink-0 place-items-center rounded-md ring-1 ring-inset ring-white/20 transition-crisp hover:bg-white/10 lg:hidden"
-          >
-            <span aria-hidden="true" className="space-y-1">
-              <span className="block h-0.5 w-4 bg-white" />
-              <span className="block h-0.5 w-4 bg-white" />
-              <span className="block h-0.5 w-4 bg-white" />
-            </span>
-          </button>
-          <div className="flex min-w-0 items-baseline gap-2.5">
-            <h1 className="truncate text-base font-semibold tracking-tight">Project Atlas</h1>
-            <p className="hidden truncate font-mono text-label uppercase text-sky-300/80 xl:block">
-              EPC project intelligence
-            </p>
-          </div>
+        <button
+          type="button"
+          onClick={() => setNavOpen(true)}
+          aria-label="Open workspace navigation"
+          aria-expanded={navOpen}
+          className="grid h-8 w-8 shrink-0 place-items-center rounded-md ring-1 ring-inset ring-white/20 transition-crisp hover:bg-white/10 lg:hidden"
+        >
+          <span aria-hidden="true" className="space-y-1">
+            <span className="block h-0.5 w-4 bg-white" />
+            <span className="block h-0.5 w-4 bg-white" />
+            <span className="block h-0.5 w-4 bg-white" />
+          </span>
+        </button>
+
+        <div className="flex min-w-0 items-baseline gap-2.5">
+          <h1 className="shrink-0 text-base font-semibold tracking-tight">Project Atlas</h1>
+          <p className="hidden truncate font-mono text-label uppercase text-sky-300/80 lg:block">
+            EPC project intelligence
+          </p>
         </div>
 
-        {/* ml-auto keeps the control cluster together instead of letting
-            justify-between fling it to the far edge of a wide screen. */}
-        <div className="ml-auto flex min-w-0 items-center gap-1.5">
-          <span className="hidden xl:inline"><SyntheticBadge /></span>
-          <span
-            className="hidden items-center gap-1.5 rounded-full bg-white/10 px-2 py-1 font-mono text-label uppercase text-sky-100 ring-1 ring-inset ring-white/15 lg:inline-flex"
-            title={health ? Object.entries(health).map(([k, v]) => `${k}: ${v}`).join(" · ") : "Checking API"}
-          >
-            <span aria-hidden="true" className={cn("h-1.5 w-1.5 rounded-full", healthy ? "bg-status-good" : health ? "bg-status-warning" : "bg-slate-400")} />
-            {health ? (healthy ? "API connected" : "API degraded") : "Checking API"}
-          </span>
-
+        {/* The project is the working context, so it sits with the title rather
+            than being pushed to the far edge with the utilities. */}
+        <div className="ml-auto flex min-w-0 items-center gap-2 lg:ml-6 lg:mr-auto">
+          <label htmlFor="project" className="hidden font-mono text-label uppercase text-sky-300/70 xl:block">
+            Project
+          </label>
           <Select
-            className="h-8 w-32 min-w-0 shrink sm:w-44 xl:w-52"
-            aria-label="Active project"
+            id="project"
+            // Left as the light field style: a native select does not reliably take a
+            // dark background across platforms, and as the primary context switcher it
+            // earns the contrast against the navy bar.
+            className="h-8 w-40 min-w-0 shrink sm:w-52"
             value={projectId}
             onChange={(event) => setProjectId(event.target.value)}
           >
             <option value="">Select a project</option>
             {projects.map((project) => <option value={project.id} key={project.id}>{project.name}</option>)}
           </Select>
+        </div>
 
-          {onSignOut ? (
-            <span className="hidden max-w-[11rem] truncate font-mono text-label text-sky-300/80 2xl:inline" title={user.email}>
-              {user.email}
+        <div className="relative flex shrink-0 items-center gap-2">
+          <span
+            className="hidden items-center gap-1.5 font-mono text-label uppercase text-sky-200/80 sm:inline-flex"
+            title={health ? Object.entries(health).map(([k, v]) => `${k}: ${v}`).join(" · ") : "Checking API"}
+          >
+            <span aria-hidden="true" className={cn("h-1.5 w-1.5 rounded-full", healthy ? "bg-status-good" : health ? "bg-status-warning" : "bg-slate-400")} />
+            {health ? (healthy ? "Connected" : "Degraded") : "Checking"}
+          </span>
+
+          <button
+            type="button"
+            onClick={() => setMenuOpen((value) => !value)}
+            aria-expanded={menuOpen}
+            aria-haspopup="menu"
+            className="flex h-8 items-center gap-2 rounded-md pl-1.5 pr-2 ring-1 ring-inset ring-white/20 transition-crisp hover:bg-white/10"
+          >
+            <span aria-hidden="true" className="grid h-5 w-5 place-items-center rounded bg-signal text-[0.65rem] font-bold text-white">
+              {(user.email[0] ?? "A").toUpperCase()}
             </span>
+            <span className="hidden max-w-[9rem] truncate text-sm md:inline">{onSignOut ? user.email.split("@")[0] : "Account"}</span>
+            <span aria-hidden="true" className={cn("text-[0.6rem] transition-base", menuOpen && "rotate-180")}>▾</span>
+          </button>
+
+          {menuOpen ? (
+            <>
+              <button
+                type="button"
+                aria-label="Close menu"
+                onClick={() => setMenuOpen(false)}
+                className="fixed inset-0 z-40 cursor-default"
+              />
+              <div
+                role="menu"
+                className="absolute right-0 top-10 z-50 w-72 animate-rise rounded-lg border border-slate-200 bg-white p-3 text-ink shadow-lift"
+              >
+                <p className="truncate font-mono text-label uppercase text-muted">Signed in</p>
+                <p className="mt-0.5 truncate text-sm font-semibold" title={user.email}>{user.email}</p>
+
+                <div className="mt-3 border-t border-slate-100 pt-3">
+                  <p className="font-mono text-label uppercase text-muted">Service health</p>
+                  <div className="mt-1.5 flex flex-wrap gap-1.5">
+                    {health ? Object.entries(health).map(([component, value]) => (
+                      <Badge key={component} tone={value === "ok" ? "green" : "red"} dot>{component}</Badge>
+                    )) : <span className="text-xs text-muted">Checking…</span>}
+                  </div>
+                </div>
+
+                <div className="mt-3 border-t border-slate-100 pt-3">
+                  <Badge tone="amber" dot>Synthetic demonstration data</Badge>
+                  <p className="mt-1.5 text-xs leading-5 text-muted">
+                    Figures are planted so the chain can be verified. Not a production forecast.
+                  </p>
+                </div>
+
+                <div className="mt-3 flex flex-col gap-2 border-t border-slate-100 pt-3">
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    disabled={!projectId || resetting}
+                    loading={resetting}
+                    onClick={async () => {
+                      if (!window.confirm("Reset this project's synthetic supply-chain scenario and clear the current demo view? Project documents are preserved.")) return;
+                      setMenuOpen(false);
+                      setResetting(true);
+                      try {
+                        await api.resetDemo(projectId);
+                        await api.seedVerticalScenario(projectId);
+                        setResetKey((value) => value + 1);
+                        setNotice({ kind: "success", text: "Seeded switchgear scenario restored; project documents were preserved." });
+                      } catch (error) {
+                        setNotice({ kind: "error", text: errorText(error) });
+                      } finally {
+                        setResetting(false);
+                      }
+                    }}
+                  >
+                    {resetting ? "Resetting" : "Reset demo scenario"}
+                  </Button>
+                  {onSignOut ? (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => { if (window.confirm("Sign out of Project Atlas?")) onSignOut(); }}
+                    >
+                      Sign out
+                    </Button>
+                  ) : null}
+                </div>
+              </div>
+            </>
           ) : null}
-          <Button
-            variant="secondary"
-            size="sm"
-            onClick={() => { if (window.confirm("Sign out of Project Atlas?")) onSignOut!(); }}
-            className={onSignOut ? undefined : "hidden"}
-          >
-            Sign out
-          </Button>
-          <Button
-            variant="secondary"
-            size="sm"
-            disabled={!projectId || resetting}
-            loading={resetting}
-            onClick={async () => {
-              if (!window.confirm("Reset this project's synthetic supply-chain scenario and clear the current demo view? Project documents are preserved.")) return;
-              setResetting(true);
-              try {
-                await api.resetDemo(projectId);
-                await api.seedVerticalScenario(projectId);
-                setResetKey((value) => value + 1);
-                setNotice({ kind: "success", text: "Seeded switchgear scenario restored; project documents were preserved." });
-              } catch (error) {
-                setNotice({ kind: "error", text: errorText(error) });
-              } finally {
-                setResetting(false);
-              }
-            }}
-          >
-            {resetting ? "Resetting" : "Reset Demo"}
-          </Button>
         </div>
       </div>
     </header>

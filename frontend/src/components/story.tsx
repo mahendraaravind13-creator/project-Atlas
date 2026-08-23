@@ -5,7 +5,7 @@ import { useState } from "react";
 import { cn } from "../lib/utils";
 import { useScrollProgress } from "../lib/motion";
 import { CountUp, Reveal, Stagger } from "./motion";
-import { Badge, Button, Card } from "./ui";
+import { Button, Card } from "./ui";
 
 /**
  * The scroll narrative: how one clause in a specification becomes a dated
@@ -83,7 +83,6 @@ const TONE_PIP = {
   warning: "bg-status-warning",
   good: "bg-status-good",
 };
-const TONE_BADGE = { critical: "red", serious: "serious", warning: "amber", good: "green" } as const;
 
 /* ── hero ─────────────────────────────────────────────────────────────────── */
 
@@ -184,121 +183,103 @@ export function StoryChain() {
   const { ref, progress } = useScrollProgress<HTMLDivElement>();
   const [open, setOpen] = useState<string | null>(CHAIN[0].key);
 
-  // Which step the rail has reached. Kept slightly ahead of raw progress so the
-  // marker arrives as the step becomes readable rather than after it.
+  // How far down the chain the reader has scrolled. Slightly ahead of raw
+  // progress so the spine reaches a step as it becomes readable, not after.
   const reached = Math.min(CHAIN.length - 1, Math.floor(progress * CHAIN.length * 1.15));
 
   return (
-    <section id="chain" ref={ref} className="mx-auto max-w-6xl scroll-mt-20 px-6 py-16 sm:py-20">
-      <Reveal className="max-w-prose">
+    <section id="chain" ref={ref} className="mx-auto max-w-4xl scroll-mt-20 px-6 py-16 sm:py-20">
+      <Reveal>
         <p className="font-mono text-label uppercase text-signal">The impact chain</p>
         <h2 className="mt-2 text-display-sm font-semibold tracking-tight text-ink sm:text-display">
           Six steps, each one cited
         </h2>
-        <p className="mt-4 text-base leading-7 text-muted">
+        <p className="mt-4 max-w-prose text-base leading-7 text-muted">
           The figures below come from the seeded SWGR-A scenario in this deployment. They are
           synthetic and deliberately planted, so the chain can be checked end to end rather than
           demonstrated on a slide.
         </p>
       </Reveal>
 
-      <div className="mt-10 grid gap-8 lg:grid-cols-[minmax(0,1fr)_240px]">
-        <ol className="space-y-3">
-          {CHAIN.map((step, index) => {
-            const isOpen = open === step.key;
-            return (
-              <Reveal as="li" key={step.key} delay={index * 40}>
-                <Card
+      {/*
+        A timeline, not a list of cards.
+        The previous version was six separate rows beside a second "propagation"
+        column that restated them - which showed the links but not the fact that
+        they connect, and said everything twice. One spine with a node per step
+        carries the causality visually, and the progress fill tells the reader
+        where they are without a duplicate rail.
+      */}
+      <ol className="relative mt-10">
+        {/* The spine. Behind the nodes, inset to their centre. */}
+        <span aria-hidden="true" className="absolute bottom-6 left-[11px] top-3 w-px bg-slate-200 sm:left-[15px]">
+          <span
+            className="absolute inset-x-0 top-0 bg-signal transition-[height] duration-slow ease-swap"
+            style={{ height: `${((reached + 1) / CHAIN.length) * 100}%` }}
+          />
+        </span>
+
+        {CHAIN.map((step, index) => {
+          const isOpen = open === step.key;
+          const isReached = index <= reached;
+          return (
+            <Reveal as="li" key={step.key} delay={index * 40} className="relative pb-3 pl-10 last:pb-0 sm:pl-14">
+              {/* Node on the spine. Filled once the reader reaches it. */}
+              <span
+                aria-hidden="true"
+                className={cn(
+                  "absolute left-0 top-2 grid h-[23px] w-[23px] place-items-center rounded-full border-2 bg-white font-mono text-[0.6rem] font-bold transition-base ease-settle sm:h-[31px] sm:w-[31px] sm:text-[0.7rem]",
+                  isReached ? "border-signal text-signal" : "border-slate-300 text-slate-400",
+                )}
+              >
+                {String(index + 1).padStart(2, "0")}
+              </span>
+
+              <button
+                type="button"
+                onClick={() => setOpen(isOpen ? null : step.key)}
+                aria-expanded={isOpen}
+                className={cn(
+                  "group w-full rounded-lg border bg-white p-4 text-left shadow-card transition-base ease-settle",
+                  isOpen ? cn("ring-2", TONE_RING[step.tone]) : "hover:-translate-y-px hover:shadow-card-hover motion-reduce:hover:translate-y-0",
+                )}
+              >
+                <span className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                  <span className="font-mono text-label uppercase text-signal">{step.stage}</span>
+                  <span className="flex items-center gap-1.5">
+                    <span aria-hidden="true" className={cn("h-1.5 w-1.5 rounded-full", TONE_PIP[step.tone])} />
+                    <span className="text-xs font-medium text-muted">{step.metric.label}</span>
+                  </span>
+                </span>
+
+                {/* Adjacent, not pinned right: justify-between put a short headline and its
+                    figure half a card apart, which is the thing that read badly before. */}
+                <span className="mt-1.5 flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                  <span className="text-lg font-semibold leading-6 text-ink">{step.headline}</span>
+                  <span className="tabular text-lg font-semibold leading-6 text-ink">
+                    <CountUp value={step.metric.value} />
+                    <span className="text-sm font-medium text-muted">{step.metric.unit}</span>
+                  </span>
+                </span>
+
+                <span className="mt-0.5 block text-xs text-muted">{step.metric.target}</span>
+
+                <span
                   className={cn(
-                    "transition-base ease-settle",
-                    isOpen ? cn("ring-2", TONE_RING[step.tone]) : "hover:border-slate-300",
+                    "grid transition-[grid-template-rows,opacity] duration-base ease-settle",
+                    isOpen ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0",
                   )}
                 >
-                  <button
-                    type="button"
-                    onClick={() => setOpen(isOpen ? null : step.key)}
-                    aria-expanded={isOpen}
-                    className="flex w-full items-start gap-4 text-left"
-                  >
-                    <span className="mt-0.5 flex shrink-0 items-center gap-2">
-                      <span
-                        aria-hidden="true"
-                        className={cn("h-2 w-2 rounded-full", TONE_PIP[step.tone])}
-                      />
-                      <span className="font-mono text-label tabular text-muted">
-                        {String(index + 1).padStart(2, "0")}
-                      </span>
+                  <span className="overflow-hidden">
+                    <span className="mt-3 block border-t border-slate-100 pt-3 text-sm leading-6 text-muted">
+                      {step.body}
                     </span>
-
-                    <span className="min-w-0 flex-1">
-                      <span className="flex flex-wrap items-center gap-2">
-                        <span className="font-mono text-label uppercase text-signal">{step.stage}</span>
-                        <Badge tone={TONE_BADGE[step.tone]} dot>
-                          {step.metric.label}
-                        </Badge>
-                      </span>
-                      <span className="mt-1 flex flex-wrap items-baseline gap-x-2.5 gap-y-0.5">
-                        <span className="text-base font-semibold text-ink">{step.headline}</span>
-                        <span className="tabular text-base font-semibold text-ink">
-                          <CountUp value={step.metric.value} />
-                          <span className="text-sm font-medium text-muted">{step.metric.unit}</span>
-                        </span>
-                        <span className="text-xs text-muted">{step.metric.target}</span>
-                      </span>
-                      <span
-                        className={cn(
-                          "grid transition-[grid-template-rows,opacity] duration-base ease-settle",
-                          isOpen ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0",
-                        )}
-                      >
-                        <span className="overflow-hidden">
-                          <span className="mt-2 block max-w-prose text-sm leading-6 text-muted">
-                            {step.body}
-                          </span>
-                        </span>
-                      </span>
-                    </span>
-
-                  </button>
-                </Card>
-              </Reveal>
-            );
-          })}
-        </ol>
-
-        {/* Progress rail. Decorative - the list above is the content - so it is
-            hidden from assistive technology and from narrow layouts. */}
-        <aside aria-hidden="true" className="hidden lg:block">
-          <div className="sticky top-24">
-            <p className="font-mono text-label uppercase text-muted">Propagation</p>
-            <div className="mt-4 flex gap-4">
-              <div className="relative w-px bg-slate-200">
-                <div
-                  className="absolute inset-x-0 top-0 bg-signal transition-[height] duration-base ease-swap"
-                  style={{ height: `${((reached + 1) / CHAIN.length) * 100}%` }}
-                />
-              </div>
-              <ul className="flex-1 space-y-6">
-                {CHAIN.map((step, index) => (
-                  <li
-                    key={step.key}
-                    className={cn(
-                      "transition-base ease-swap",
-                      index <= reached ? "text-ink opacity-100" : "text-muted opacity-45",
-                    )}
-                  >
-                    <p className="text-sm font-semibold leading-5">{step.stage}</p>
-                    <p className="tabular mt-0.5 text-xs text-muted">
-                      {step.metric.value}
-                      {step.metric.unit} · {step.metric.label.toLowerCase()}
-                    </p>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </div>
-        </aside>
-      </div>
+                  </span>
+                </span>
+              </button>
+            </Reveal>
+          );
+        })}
+      </ol>
     </section>
   );
 }
