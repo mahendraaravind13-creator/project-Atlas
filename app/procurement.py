@@ -339,13 +339,6 @@ async def assess_persisted_shipment(
     if not shipment or not all((shipment.planned_delivery, shipment.forecast_delivery, shipment.required_on_site_date)):
         return None
     vendor = await session.get(Vendor, shipment.vendor_id) if shipment.vendor_id else None
-    variance = (shipment.forecast_delivery - shipment.planned_delivery).days
-    exposure = max(
-        0,
-        (shipment.forecast_delivery - shipment.required_on_site_date).days - shipment.available_float_days,
-    )
-    severity = schedule_exposure_severity(variance, exposure)
-    alert_at = shipment.first_alert_at
     impact = await session.scalar(
         select(ImpactEvent).where(
             ImpactEvent.project_id == project_id,
@@ -354,6 +347,20 @@ async def assess_persisted_shipment(
             ImpactEvent.source_id == str(shipment.id),
         )
     )
+    return _shipment_assessment(shipment, vendor, impact)
+
+
+def _shipment_assessment(
+    shipment: Shipment, vendor: Vendor | None, impact: ImpactEvent | None
+) -> ImportedShipmentAssessment:
+    """Pure assessment builder shared by the single and batch paths."""
+    variance = (shipment.forecast_delivery - shipment.planned_delivery).days
+    exposure = max(
+        0,
+        (shipment.forecast_delivery - shipment.required_on_site_date).days - shipment.available_float_days,
+    )
+    severity = schedule_exposure_severity(variance, exposure)
+    alert_at = shipment.first_alert_at
     return ImportedShipmentAssessment(
         shipment_id=shipment.id,
         equipment_id=shipment.equipment_id,
@@ -382,8 +389,32 @@ async def imported_shipment_assessments(
         .where(Shipment.project_id == project_id, Shipment.required_on_site_date.is_not(None))
         .order_by(Shipment.reference)
     )).all())
-    results = [await assess_persisted_shipment(session, project_id, item.id) for item in shipments]
-    return [item for item in results if item and (not alerts_only or item.severity != "on_track")]
+    if not shipments:
+        return []
+    # Three queries total instead of three per shipment: the previous version
+    # re-selected each shipment it had already loaded, then looked up its vendor
+    # and delivery-risk event one row at a time.
+    vendor_ids = {item.vendor_id for item in shipments if item.vendor_id}
+    vendors = {
+        vendor.id: vendor
+        for vendor in (await session.scalars(select(Vendor).where(Vendor.id.in_(vendor_ids)))).all()
+    } if vendor_ids else {}
+    impacts = {
+        event.source_id: event
+        for event in (await session.scalars(
+            select(ImpactEvent).where(
+                ImpactEvent.project_id == project_id,
+                ImpactEvent.type == "DELIVERY_RISK",
+                ImpactEvent.source_id.in_([str(item.id) for item in shipments]),
+            )
+        )).all()
+    }
+    results = [
+        _shipment_assessment(item, vendors.get(item.vendor_id), impacts.get(str(item.id)))
+        for item in shipments
+        if all((item.planned_delivery, item.forecast_delivery, item.required_on_site_date))
+    ]
+    return [item for item in results if not alerts_only or item.severity != "on_track"]
 
 
 async def shipment_timeline(

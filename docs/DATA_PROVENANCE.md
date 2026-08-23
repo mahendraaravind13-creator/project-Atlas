@@ -20,7 +20,7 @@ The corpus uses realistic EPC language but does not reproduce or claim official 
 | Shipment simulation | `supply_chain/shipments.json` | Five fictional shipments, tiers, milestones, two risk events, and alternatives; no live positions |
 | Ground truth | `ground_truth.json` | Expected findings, RFI pairs, schedule risks, and cited answers for deterministic evaluation |
 
-The complete planted-case explanation is in [the dataset README](../data/synthetic_epc/README.md). Dataset project IDs are synthetic. The presentation name “UPS-01” maps to the connected demo story; source documents use the equipment tag `UPS-A`.
+The complete planted-case explanation is in [the dataset README](../data/synthetic_epc/README.md). Dataset project IDs are synthetic. The walkthrough and the source documents both use the equipment tag `UPS-A`.
 
 ## Processing lineage
 

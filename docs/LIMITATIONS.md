@@ -28,7 +28,6 @@
 - Schedule results are deterministic scenario analysis, not trained historical prediction. The current error result covers one planted 35-day case.
 - Commissioning pass/fail and readiness use visible project rules, not certification logic. Electronic signatures and offline/mobile execution are absent.
 - Mitigation costs/days are calculated from supplied scenario inputs. They are not quotations, commitments, or approved change orders until a human records a decision.
-- The UI’s “UPS-01” walkthrough label maps to the seeded source tag `UPS-A`; this naming mismatch should be disclosed during the demo.
 
 ## Operations and evidence
 
