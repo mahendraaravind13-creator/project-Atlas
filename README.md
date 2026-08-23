@@ -83,14 +83,14 @@ Values below are calculated from the synthetic evaluation suite in [`evaluation/
 | Evaluation area | Calculated evidence |
 | --- | --- |
 | Compliance | Precision/recall/F1 `1.0/1.0/1.0` on 12 labelled synthetic outcomes |
-| Advanced RAG | Recall@5 `0.75`, Recall@12 `1.0`, MRR `1.0`, unsupported-claim rate `0.0`; current correct-document/page/citation-precision metrics are `0.0` |
-| Baseline RAG | Recall@5 `0.75`, Recall@12 `0.75`, citation precision `0.8333` |
+| Advanced RAG | Recall@5 `1.0`, Recall@12 `1.0`, MRR `1.0`, correct-document/page rate `1.0`, citation completeness `1.0`, citation precision `0.6667`, unsupported-claim rate `0.0` |
+| Baseline RAG | Recall@5 `1.0`, Recall@12 `1.0`, citation precision `1.0` |
 | Schedule | `35`-day predicted and simulated delay; `0`-day error on one planted case |
 | Supply chain | `5/5` synthetic shipments represented; `15` supplier tiers; mean alert latency `55` minutes |
 | Commissioning | `21/21` automatically evaluated steps; automation coverage `1.0` |
 | Manual effort / savings | **Not measured yet** |
 
-The current advanced pipeline does not outperform the baseline on all guarded quality metrics. This result is retained rather than hidden.
+Both paths improved substantially once dense retrieval used a real embedding model instead of a hashed bag of words, and once the evidence gate stopped failing a whole context because one retrieved RFI was still open. The advanced path still does not beat the baseline on every guarded metric — its citation precision is `0.6667` against `1.0`, because the evaluation harness's extractive responder always cites its top three chunks. The guard therefore declines to claim an improvement, and that result is retained rather than hidden.
 
 ## Hackathon evaluation evidence
 
