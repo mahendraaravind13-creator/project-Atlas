@@ -6,6 +6,11 @@
 # /evaluation and 404 half the API. So the API prefixes are matched verbatim
 # and everything else falls through to Next.js.
 #
+# /auth/* belongs on this list. It was missing once, and the failure is quiet
+# rather than loud: the sign-in request reaches Next.js, which answers with the
+# dashboard's HTML, so the browser gets a 200 full of HTML where it expected
+# JSON instead of an error naming the real problem.
+#
 # Serving both from one origin also means src/lib/api.ts can keep its
 # production fallback of "" (same-origin), so no NEXT_PUBLIC_API_URL is baked
 # into the bundle and the instance's address can change without a rebuild.
@@ -31,7 +36,7 @@
 		max_size 60MB
 	}
 
-	@api path /projects /projects/* /api/* /health /ready /docs /docs/* /openapi.json /redoc
+	@api path /projects /projects/* /api/* /auth /auth/* /health /ready /docs /docs/* /openapi.json /redoc
 
 	handle @api {
 		reverse_proxy api:8000 {

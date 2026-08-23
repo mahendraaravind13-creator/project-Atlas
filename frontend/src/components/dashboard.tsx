@@ -2,8 +2,10 @@
 
 import { FormEvent, useEffect, useState } from "react";
 
-import { ApiError, api, type Citation, type CopilotResult, type ComplianceFinding, type DigitalThread, type Document, type EvaluationRun, type ExecutiveSummary, type ImpactChain, type MitigationSelection, type MitigationSimulation, type Procedure, type Project, type ShipmentList, type SupplyAssessment, type TestRecord } from "../lib/api";
+import { ApiError, api, isAuthDisabled, type AuthUser, type Citation, type CopilotResult, type ComplianceFinding, type DigitalThread, type Document, type EvaluationRun, type ExecutiveSummary, type ImpactChain, type MitigationSelection, type MitigationSimulation, type Procedure, type Project, type ShipmentList, type SupplyAssessment, type TestRecord } from "../lib/api";
 import { Badge, Button, Card, Input, Select, Textarea } from "./ui";
+import { Login } from "./login";
+import { onTokenChange } from "../lib/token";
 
 type View = "overview" | "knowledge" | "thread" | "compliance" | "impact" | "mitigations" | "readiness" | "supply" | "evidence" | "evaluation" | "documents";
 type Notice = { kind: "success" | "error"; text: string } | null;
@@ -28,7 +30,85 @@ function Empty({ children }: { children: React.ReactNode }) { return <div classN
 function SyntheticBadge() { return <Badge tone="amber">Synthetic simulation</Badge>; }
 function EvidenceDrawer({ title = "Evidence", evidence, onClose }: { title?: string; evidence: unknown[]; onClose: () => void }) { return <div className="fixed inset-0 z-40 bg-slate-950/30" onClick={onClose}><aside className="scroll-y ml-auto h-full w-full max-w-xl bg-white p-6 shadow-drawer" onClick={(event) => event.stopPropagation()}><div className="flex items-center justify-between"><div><p className="text-xs font-semibold uppercase tracking-wider text-signal">Traceable source</p><h3 className="mt-1 text-xl font-semibold">{title}</h3></div><Button variant="secondary" onClick={onClose}>Close</Button></div><div className="mt-5 space-y-3">{evidence.length ? evidence.map((item, index) => <pre className="scroll-x rounded-lg border border-slate-200 bg-slate-50 p-3 font-mono text-[0.7rem] leading-5 text-slate-700" key={index}>{JSON.stringify(item, null, 2)}</pre>) : <Empty>No evidence links are available for this record.</Empty>}</div></aside></div>; }
 
+type Identity = { user: AuthUser | null; reason: string | null };
+
+/**
+ * Ask the API who the caller is. A 401 is a normal answer meaning "sign in",
+ * not a failure to report; anything else is a connectivity problem worth
+ * showing.
+ */
+async function fetchIdentity(): Promise<Identity> {
+  try {
+    return { user: await api.me(), reason: null };
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 401) return { user: null, reason: null };
+    // 404 means the endpoint does not exist, so the API predates
+    // authentication. Carry on unauthenticated rather than showing a sign-in
+    // screen no deployed API could satisfy - this dashboard has to work against
+    // an API that has not been redeployed yet.
+    if (error instanceof ApiError && error.status === 404) {
+      return { user: { id: "0", email: "anonymous (authentication unavailable)", is_active: true }, reason: null };
+    }
+    return { user: null, reason: "Unable to reach Project Atlas. Check the API service and try again." };
+  }
+}
+
+/**
+ * Decides between the sign-in screen and the dashboard.
+ *
+ * The API is asked who the caller is rather than the build being told whether
+ * authentication is on. GET /auth/me answers 200 with an "anonymous" identity
+ * while ATLAS_AUTH_ENABLED is false, 200 with a real account when signed in,
+ * and 401 when a token is required and absent. That keeps one build working
+ * against a deployment with the flag either way - no NEXT_PUBLIC_ flag to set,
+ * and no chance of the two drifting apart.
+ */
 export function Dashboard() {
+  const [user, setUser] = useState<AuthUser | null>(null);
+  const [checking, setChecking] = useState(true);
+  const [signedOutReason, setSignedOutReason] = useState<string | null>(null);
+
+  // The fetch lives at module scope and returns a result rather than setting
+  // state, so the effect below assigns state inline. react-hooks/set-state-in-effect
+  // rejects an effect that calls any function which sets state, however
+  // indirectly, and this is the pattern the rest of this file already uses.
+  const apply = (result: Identity) => {
+    setUser(result.user);
+    setSignedOutReason(result.reason);
+    setChecking(false);
+  };
+
+  useEffect(() => { void (async () => { apply(await fetchIdentity()); })(); }, []);
+
+  // Re-check after a sign-in. Driven by an event, not an effect.
+  const reidentify = () => { setChecking(true); void (async () => { apply(await fetchIdentity()); })(); };
+
+  // request() clears the token on any 401, so a session that expires mid-use
+  // lands back here with an explanation rather than a wall of failed panels.
+  useEffect(() => onTokenChange((token) => {
+    if (token === null && user && !isAuthDisabled(user)) {
+      setUser(null);
+      setSignedOutReason("Your session expired. Sign in again to continue.");
+    }
+  }), [user]);
+
+  if (checking) {
+    return <main className="mesh flex min-h-screen items-center justify-center bg-canvas">
+      <p className="text-sm text-muted">Connecting to Project Atlas…</p>
+    </main>;
+  }
+
+  if (!user) return <Login onSignedIn={reidentify} reason={signedOutReason} />;
+
+  return <SignedInDashboard
+    user={user}
+    onSignOut={isAuthDisabled(user) ? null : () => { api.logout(); setUser(null); setSignedOutReason(null); }}
+  />;
+}
+
+// Exported for tests: this is the workspace itself, separate from the session
+// gate above, so its rendering can be asserted without a signed-in session.
+export function SignedInDashboard({ user, onSignOut }: { user: AuthUser; onSignOut: (() => void) | null }) {
   const [view, setView] = useState<View>("overview");
   const [projects, setProjects] = useState<Project[]>([]);
   const [projectId, setProjectId] = useState("");
@@ -55,7 +135,7 @@ export function Dashboard() {
   const props = { projectId, documents, refreshDocuments, setNotice };
 
   return <main className="min-h-screen bg-canvas mesh">
-    <header className="sticky top-0 z-30 border-b border-navy-hi/60 bg-navy text-white shadow-card"><div className="mx-auto flex max-w-[1600px] flex-wrap items-center justify-between gap-x-5 gap-y-2 px-6 py-2.5 lg:flex-nowrap"><div className="flex min-w-0 items-baseline gap-2.5"><h1 className="text-base font-semibold tracking-tight">Project Atlas</h1><p className="hidden truncate font-mono text-label uppercase text-sky-300/80 xl:block">EPC project intelligence</p></div><div className="flex min-w-0 items-center gap-2"><SyntheticBadge /><Badge tone={health && Object.values(health).every((value) => value === "ok") ? "green" : "amber"}>{health ? "API connected" : "Checking API"}</Badge><Select className="h-8 w-48 min-w-0 shrink" value={projectId} onChange={(event) => setProjectId(event.target.value)}><option value="">Select a project</option>{projects.map((project) => <option value={project.id} key={project.id}>{project.name}</option>)}</Select><Button variant="secondary" disabled={!projectId || resetting} onClick={async () => { if (!window.confirm("Reset this project's synthetic supply-chain scenario and clear the current demo view? Project documents are preserved.")) return; setResetting(true); try { await api.resetDemo(projectId); await api.seedVerticalScenario(projectId); setResetKey((value) => value + 1); setNotice({ kind: "success", text: "Seeded switchgear scenario restored; project documents were preserved." }); } catch (error) { setNotice({ kind: "error", text: errorText(error) }); } finally { setResetting(false); } }}>{resetting ? "Resetting…" : "Reset Demo"}</Button></div></div></header>
+    <header className="sticky top-0 z-30 border-b border-navy-hi/60 bg-navy text-white shadow-card"><div className="mx-auto flex max-w-[1600px] flex-wrap items-center justify-between gap-x-5 gap-y-2 px-6 py-2.5 lg:flex-nowrap"><div className="flex min-w-0 items-baseline gap-2.5"><h1 className="text-base font-semibold tracking-tight">Project Atlas</h1><p className="hidden truncate font-mono text-label uppercase text-sky-300/80 xl:block">EPC project intelligence</p></div><div className="flex min-w-0 items-center gap-2"><SyntheticBadge /><Badge tone={health && Object.values(health).every((value) => value === "ok") ? "green" : "amber"}>{health ? "API connected" : "Checking API"}</Badge><Select className="h-8 w-48 min-w-0 shrink" value={projectId} onChange={(event) => setProjectId(event.target.value)}><option value="">Select a project</option>{projects.map((project) => <option value={project.id} key={project.id}>{project.name}</option>)}</Select>{onSignOut ? <span className="hidden max-w-[14rem] truncate font-mono text-label text-sky-300/80 xl:inline" title={user.email}>{user.email}</span> : null}<Button variant="secondary" onClick={() => { if (window.confirm("Sign out of Project Atlas?")) onSignOut!(); }} className={onSignOut ? undefined : "hidden"}>Sign out</Button><Button variant="secondary" disabled={!projectId || resetting} onClick={async () => { if (!window.confirm("Reset this project's synthetic supply-chain scenario and clear the current demo view? Project documents are preserved.")) return; setResetting(true); try { await api.resetDemo(projectId); await api.seedVerticalScenario(projectId); setResetKey((value) => value + 1); setNotice({ kind: "success", text: "Seeded switchgear scenario restored; project documents were preserved." }); } catch (error) { setNotice({ kind: "error", text: errorText(error) }); } finally { setResetting(false); } }}>{resetting ? "Resetting…" : "Reset Demo"}</Button></div></div></header>
     <div className="mx-auto grid max-w-[1600px] gap-5 px-6 pb-8 pt-5 lg:grid-cols-[220px_minmax(0,1fr)]">
       <aside className="h-fit rounded-xl border border-slate-200/90 bg-white p-2.5 shadow-card lg:sticky lg:top-[4.25rem]"><p className="px-2 pb-2 font-mono text-label uppercase text-slate-400">Workspace</p><nav className="space-y-0.5">{views.map(([key, label]) => <button key={key} onClick={() => setView(key)} aria-current={view === key ? "page" : undefined} className={`flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm font-medium transition ${view === key ? "bg-navy text-white shadow-card" : "text-slate-600 hover:bg-slate-100 hover:text-ink"}`}><span className={`h-1.5 w-1.5 shrink-0 rounded-full ${view === key ? "bg-signal" : "bg-transparent"}`} />{label}</button>)}</nav><p className="mt-4 border-t border-slate-100 px-2 pt-3 text-xs leading-5 text-muted">AI outputs are evidence-led suggestions. Reviewer decisions and commissioning records are explicitly marked.</p></aside>
       <section className="min-w-0"><NoticeBox notice={notice} />{loading ? <Card><p className="animate-pulse text-sm text-slate-500">Loading project workspace…</p></Card> : view === "overview" ? <Overview project={activeProject} documents={documents} health={health} onCreate={async (name) => { try { const project = await api.createProject(name); await refreshProjects(); setProjectId(project.id); setNotice({ kind: "success", text: `Created ${project.name}.` }); } catch (error) { setNotice({ kind: "error", text: errorText(error) }); } }} /> : !projectId ? <Empty>Select or create a project to use this workspace.</Empty> : <Workspace key={`${projectId}-${resetKey}-${view}`} view={view} {...props} />}</section>
