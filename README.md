@@ -131,7 +131,7 @@ There are no demo credentials because application authentication is not implemen
 
 **Frontend:** `NEXT_PUBLIC_API_URL`, `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`.
 
-See [`.env.example`](.env.example) for names only and [DEPLOY.md](DEPLOY.md) for the environment matrix, migration command, idempotent seed/reset commands, and Render/Vercel setup.
+See [`.env.example`](.env.example) for names only, [DEPLOY.md](DEPLOY.md) for the environment matrix, migration command, and idempotent seed/reset commands, and [`deploy/env.aws.example`](deploy/env.aws.example) for the single-instance AWS deployment.
 
 ## Testing
 
@@ -169,9 +169,12 @@ match paraphrased questions.
 
 ## Deployment
 
-The prepared target is **Vercel** for `frontend` and **Render** for FastAPI using [`render.yaml`](render.yaml); Supabase-compatible PostgreSQL and Qdrant Cloud are configured through backend-only variables. The production start script runs `alembic upgrade head` then Uvicorn on Render’s `$PORT`.
+Two prepared targets, described in [DEPLOY.md](DEPLOY.md):
 
-No public deployment has been verified. Follow [DEPLOY.md](DEPLOY.md) after configuring authenticated cloud accounts and environment variables.
+- **AWS, single instance** — one EC2 box runs the API, dashboard, PostgreSQL, Qdrant and Caddy through [`docker-compose.aws.yml`](docker-compose.aws.yml); GitHub Actions builds both images and the instance pulls them, so a push to `main` rolls out. Self-contained, free-tier sized, and uploads are durable on named volumes. See [docs/AWS_DEPLOY.md](docs/AWS_DEPLOY.md).
+- **Render + Vercel** — `frontend` on Vercel and FastAPI on Render using [`render.yaml`](render.yaml), with Supabase-compatible PostgreSQL and Qdrant Cloud configured through backend-only variables. The production start script runs `alembic upgrade head` then Uvicorn on Render’s `$PORT`.
+
+No public deployment has been verified. The container images build and the dashboard image has been smoke-tested locally; nothing has been stood up on a cloud account yet.
 
 ## Repository structure
 
@@ -183,6 +186,7 @@ migrations/             Alembic schema migrations
 tests/                  Backend unit, API, and integration tests
 evaluation/             Reproducible synthetic evaluation inputs and reports
 scripts/                Demo seed, reindex, evaluation, and startup commands
+deploy/                 EC2 bootstrap, Caddy reverse proxy, AWS env template
 docs/                   Architecture, demo, provenance, limitations, licenses
 ```
 

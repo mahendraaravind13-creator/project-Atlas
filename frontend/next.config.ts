@@ -7,6 +7,11 @@ const nextConfig: NextConfig = {
   // wrong workspace root, which can resolve modules from outside the app. Pin it
   // to this directory.
   turbopack: { root: path.resolve(import.meta.dirname ?? ".") },
+
+  // Emit .next/standalone with only the traced runtime dependencies, so the
+  // container ships ~150 MB instead of the whole node_modules tree. Vercel
+  // ignores this setting, so the existing Vercel deploy is unaffected.
+  output: "standalone",
 };
 
 export default nextConfig;

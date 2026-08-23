@@ -45,6 +45,8 @@
 ## Operations and evidence
 
 - Queue-backed ingestion, autoscaling, production observability, backups, disaster recovery, load tests, and SLOs are roadmap work.
+- Uploaded originals (`ATLAS_UPLOAD_DIR`) and the graph export (`ATLAS_GRAPH_DIR`) are plain filesystem paths, not object storage. On the Render target they sit on an ephemeral container filesystem, so database rows and their citations outlive the files behind them across a deploy or restart; the single-instance AWS target mounts both on named volumes, which makes them durable per instance but still unreplicated and unbacked-up.
+- The single-instance AWS target has no redundancy by construction: one instance hosts the API, dashboard, PostgreSQL, and Qdrant, so losing it loses the running deployment until it is rebuilt and re-seeded.
 - Measured latencies are in-process evaluation-harness values, not deployment SLOs.
 - Manual effort and hours saved are `NOT_MEASURED`.
 - A root project license is missing and must be resolved before public-repository publication.

@@ -33,7 +33,7 @@ click==8.4.2
     # via
     #   huggingface-hub
     #   uvicorn
-colorama==0.4.6
+colorama==0.4.6 ; platform_system == "Windows"
     # via
     #   click
     #   tqdm
@@ -198,7 +198,7 @@ python-dotenv==1.2.3
     #   uvicorn
 python-multipart==0.0.32
     # via project-atlas (pyproject.toml)
-pywin32==312
+pywin32==312 ; platform_system == "Windows"
     # via portalocker
 pyyaml==6.0.3
     # via
