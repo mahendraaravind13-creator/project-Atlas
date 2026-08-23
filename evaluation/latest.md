@@ -6,16 +6,16 @@ All metrics are deterministic or directly measured by this command. Synthetic sc
 
 | Metric | Baseline | Advanced |
 | --- | ---: | ---: |
-| recall at 5 | 0.75 | 0.75 |
-| recall at 12 | 0.75 | 1.0 |
+| recall at 5 | 1.0 | 1.0 |
+| recall at 12 | 1.0 | 1.0 |
 | mrr | 1.0 | 1.0 |
 | correct document rate | 1.0 | 0.0 |
 | correct page rate | 1.0 | 0.0 |
-| citation precision | 0.8333 | 0.0 |
+| citation precision | 1.0 | 0.0 |
 | unsupported claim rate | 0.0 | 0.0 |
-| average input tokens | 413.33 | 94.0 |
-| average output tokens | 227.33 | 10.0 |
-| average latency ms | 1.35 | 21.62 |
+| average input tokens | 439.0 | 122.0 |
+| average output tokens | 250.0 | 10.0 |
+| average latency ms | 30.51 | 182.02 |
 
 ## Compliance
 
@@ -76,3 +76,12 @@ All metrics are deterministic or directly measured by this command. Synthetic sc
 | atlas hours | NOT MEASURED |
 | hours saved | NOT MEASURED |
 | note | Add measured manual_hours, atlas_hours, and sample_count values before claiming hours saved. |
+
+## Provenance
+
+| Metric | Value |
+| --- | ---: |
+| llm calls | none |
+| generation | deterministic extractive responder |
+| embedding backend | sentence_transformer |
+| embedding model | sentence-transformers/all-MiniLM-L6-v2 |

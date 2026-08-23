@@ -25,29 +25,35 @@
     "note": "Add measured manual_hours, atlas_hours, and sample_count values before claiming hours saved.",
     "status": "NOT_MEASURED"
   },
+  "provenance": {
+    "embedding_backend": "sentence_transformer",
+    "embedding_model": "sentence-transformers/all-MiniLM-L6-v2",
+    "generation": "deterministic extractive responder",
+    "llm_calls": "none"
+  },
   "rag": {
     "advanced": {
-      "average_input_tokens": 94.0,
-      "average_latency_ms": 21.62,
+      "average_input_tokens": 122.0,
+      "average_latency_ms": 182.02,
       "average_output_tokens": 10.0,
       "citation_precision": 0.0,
       "correct_document_rate": 0.0,
       "correct_page_rate": 0.0,
       "mrr": 1.0,
       "recall_at_12": 1.0,
-      "recall_at_5": 0.75,
+      "recall_at_5": 1.0,
       "unsupported_claim_rate": 0.0
     },
     "baseline": {
-      "average_input_tokens": 413.33,
-      "average_latency_ms": 1.35,
-      "average_output_tokens": 227.33,
-      "citation_precision": 0.8333,
+      "average_input_tokens": 439.0,
+      "average_latency_ms": 30.51,
+      "average_output_tokens": 250.0,
+      "citation_precision": 1.0,
       "correct_document_rate": 1.0,
       "correct_page_rate": 1.0,
       "mrr": 1.0,
-      "recall_at_12": 0.75,
-      "recall_at_5": 0.75,
+      "recall_at_12": 1.0,
+      "recall_at_5": 1.0,
       "unsupported_claim_rate": 0.0
     }
   },

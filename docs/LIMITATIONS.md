@@ -18,6 +18,19 @@
 ## AI and retrieval
 
 - Groq requires a configured API key. Embeddings run in-process from a self-hosted `all-MiniLM-L6-v2` model, not a managed embedding service; first use downloads model weights.
+- **Open RFIs in the retrieved set block the whole answer.** The evidence gate in
+  `_evidence_sufficiency` rejects a context when *any* selected chunk has a
+  non-approved status. `_approval_status` falls back to `rfi_status`, so a single
+  **open** RFI yields `"open"`, which is absent from `APPROVED_EVIDENCE`, and the
+  request returns `INSUFFICIENT_EVIDENCE` even when the answer is fully supported
+  by an approved specification retrieved alongside it. This — not retrieval
+  quality — is why advanced correct-document rate, correct-page rate and citation
+  precision are `0.0` while advanced recall@5 and MRR are `1.0`.
+  The conservative fix is to *exclude* non-current chunks and judge the remainder,
+  as `context._revision_conflicts` already does for superseded revisions, rather
+  than failing the entire context. Left unchanged pending a decision, because it
+  makes the system answer where it currently refuses.
+
 - The latest held-out comparison does not support claiming that advanced RAG is better overall. Advanced Recall@12 is `1.0` versus baseline `0.75`, but advanced correct-document, correct-page, and citation precision are `0.0` in `evaluation/latest.json`.
 - Synthetic evaluation and deterministic test doubles do not measure live Groq quality, latency, token billing, or production concurrency.
 - Citations reduce unsupported answers but do not replace engineering review. Conflicting or insufficient evidence may still require manual investigation.
