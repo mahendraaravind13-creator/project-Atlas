@@ -115,3 +115,19 @@ def test_session_ignores_a_local_dotenv() -> None:
     assert Settings.model_config.get("env_file") is None, (
         ".env is being read during tests, so results depend on the developer's machine"
     )
+
+
+def test_session_resolves_no_llm_route_at_all() -> None:
+    """
+    Blanking keys is not enough once a provider can run anonymously: it would
+    resolve without credentials and the suite would call a public endpoint for
+    real. tests/conftest.py pins a keyed-only order; this proves it holds.
+    """
+    from app.llm import PROVIDERS, LLMGateway
+
+    gateway = LLMGateway(Settings())
+
+    assert gateway.routes == [], f"tests can reach {gateway.providers}"
+    assert not any(
+        PROVIDERS[name].anonymous for name in Settings().llm_provider_order if name in PROVIDERS
+    ), "an anonymous provider in the test order reopens live network access"

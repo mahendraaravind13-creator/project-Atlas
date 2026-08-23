@@ -33,6 +33,9 @@ services:
       # --- LLM provider order. Extra providers are skipped without a key,
       # so a second entry costs nothing and survives the first hitting its
       # daily cap. See app/llm.py PROVIDERS for the registry. ---
+      # Keyed providers only. The anonymous llm7 tier is deliberately absent:
+      # it is a local demo convenience, not something a deployment should send
+      # project content to.
       - key: ATLAS_LLM_PROVIDERS
         value: groq,openrouter,gemini
       - key: OPENROUTER_API_KEY

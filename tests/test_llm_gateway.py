@@ -178,7 +178,9 @@ async def test_no_configured_provider_is_a_503_before_any_request(monkeypatch) -
     for provider in PROVIDERS.values():
         monkeypatch.delenv(provider.key_env, raising=False)
         monkeypatch.delenv(f"ATLAS_{provider.key_env}", raising=False)
-    gateway = LLMGateway(Settings(groq_api_key=""))
+    # Keyed providers only: the default order ends with an anonymous provider,
+    # which resolves without credentials and would never leave the list empty.
+    gateway = LLMGateway(Settings(groq_api_key="", llm_providers="groq,openrouter"))
 
     assert gateway.client is None
     with pytest.raises(IngestionError) as caught:
@@ -233,3 +235,45 @@ async def test_optional_schedule_narrative_falls_back_to_deterministic_result() 
     risk = SimpleNamespace(model_dump=lambda **_kwargs: {})
 
     assert await narrator.enrich(risk) is risk
+
+
+# --------------------------------------------------------------------------
+# Anonymous providers - the zero-setup last resort
+# --------------------------------------------------------------------------
+
+def test_an_anonymous_provider_is_usable_without_any_key(monkeypatch) -> None:
+    """
+    llm7 serves a limited catalogue with no credential, so it stays available
+    when every keyed provider is exhausted. Verified live: with Groq rate
+    limited, generation failed over to llm7 and still returned a cited answer.
+    """
+    monkeypatch.delenv("LLM7_API_KEY", raising=False)
+
+    gateway = LLMGateway(Settings(groq_api_key="", llm_providers="llm7"))
+
+    assert gateway.providers == ["llm7"]
+    assert gateway.routes[0].client is not None
+
+
+def test_a_keyed_provider_without_its_key_is_still_skipped(monkeypatch) -> None:
+    """Only providers flagged anonymous get the exemption."""
+    monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
+    monkeypatch.delenv("LLM7_API_KEY", raising=False)
+
+    gateway = LLMGateway(Settings(groq_api_key="", llm_providers="openrouter,llm7"))
+
+    assert gateway.providers == ["llm7"]
+
+
+def test_only_llm7_is_marked_anonymous() -> None:
+    """A wrongly-flagged provider would send unauthenticated requests forever."""
+    assert {name for name, p in PROVIDERS.items() if p.anonymous} == {"llm7"}
+
+
+def test_the_default_order_keeps_an_anonymous_fallback_last() -> None:
+    # The declared default, not Settings().llm_provider_order: the test session
+    # deliberately pins a keyed-only order so nothing reaches a live endpoint.
+    order = [name.strip() for name in Settings.model_fields["llm_providers"].default.split(",")]
+
+    assert order[-1] == "llm7", "the unauthenticated tier must be the last resort"
+    assert len(order) > 1, "a single provider leaves no failover path"

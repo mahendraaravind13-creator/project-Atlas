@@ -146,7 +146,7 @@ class Settings(BaseSettings):
     # app.llm.PROVIDERS; one without an API key present is skipped, so a shared
     # list works across machines holding different keys. Listing more than one
     # is what stops a single provider's daily cap from taking generation down.
-    llm_providers: str = "groq"
+    llm_providers: str = "groq,llm7"
 
     # Optional single override applied to whichever provider serves a request,
     # for pinning one model across providers. Per-provider *_MODEL wins over it.

@@ -37,6 +37,11 @@ class Provider:
     base_url: str
     key_env: str
     default_model: str
+    # Some endpoints serve a limited catalogue with no credential at all. Those
+    # stay usable when every keyed provider is exhausted, which keeps a demo
+    # alive - but they offer no SLA and no stated data handling, so they belong
+    # last in the order and not in a deployment that carries real content.
+    anonymous: bool = False
 
 
 # Ordered by how much free headroom each tier gives, most generous first.
@@ -60,8 +65,9 @@ PROVIDERS: dict[str, Provider] = {
         Provider("mistral", "https://api.mistral.ai/v1", "MISTRAL_API_KEY", "mistral-small-latest"),
         Provider("huggingface", "https://router.huggingface.io/v1", "HF_TOKEN", "meta-llama/Llama-3.3-70B-Instruct"),
         Provider("ollama", "https://ollama.com/v1", "OLLAMA_API_KEY", "gpt-oss:120b"),
-        # 10 RPM anonymous, so it works with no key at all - useful last resort.
-        Provider("llm7", "https://api.llm7.io/v1", "LLM7_API_KEY", "gpt-5-mini"),
+        # 10 RPM with no credential. Verified reachable and JSON-mode capable on
+        # DeepSeek-V4-Flash-0731; most of its other models do require a key.
+        Provider("llm7", "https://api.llm7.io/v1", "LLM7_API_KEY", "DeepSeek-V4-Flash-0731", anonymous=True),
     )
 }
 
@@ -166,15 +172,17 @@ def _build_routes(settings: Settings) -> list[Route]:
             logger.warning("llm_unknown_provider provider=%s known=%s", name, sorted(PROVIDERS))
             continue
         key = settings.provider_api_key(provider)
-        if not key:
+        if not key and not provider.anonymous:
             logger.debug("llm_provider_skipped provider=%s reason=no_api_key", name)
             continue
+        if not key:
+            logger.debug("llm_provider_anonymous provider=%s", name)
         routes.append(
             Route(
                 provider=provider,
                 model=settings.provider_model(provider),
                 client=openai.AsyncOpenAI(
-                    api_key=key,
+                    api_key=key or "anonymous",
                     base_url=provider.base_url,
                     timeout=settings.llm_timeout_seconds,
                     max_retries=0,  # failover is handled here, not per-client

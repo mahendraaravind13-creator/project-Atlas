@@ -39,6 +39,12 @@ EXTERNAL_ENV_VARS = (
     "ATLAS_JWT_SECRET_KEY",
 )
 
+# Blanking keys is not sufficient on its own: an anonymous provider resolves
+# without credentials, so leaving it in the order let the suite make real
+# network calls to a public endpoint. Pin a keyed-only order for the session -
+# with every key blanked above, no route resolves and nothing reaches a network.
+KEYED_ONLY_PROVIDERS = "groq,openrouter"
+
 
 @pytest.fixture(scope="session", autouse=True)
 def _isolate_environment_from_dotenv() -> None:
@@ -51,11 +57,13 @@ def _isolate_environment_from_dotenv() -> None:
         os.environ.pop(name, None)
     # Any ATLAS_* override would silently change retrieval or ingestion behaviour.
     atlas_overrides = {name: os.environ.pop(name) for name in list(os.environ) if name.startswith("ATLAS_")}
+    os.environ["ATLAS_LLM_PROVIDERS"] = KEYED_ONLY_PROVIDERS
     get_settings.cache_clear()
 
     yield
 
     Settings.model_config["env_file"] = original_env_file
+    os.environ.pop("ATLAS_LLM_PROVIDERS", None)
     for name, value in saved.items():
         if value is not None:
             os.environ[name] = value

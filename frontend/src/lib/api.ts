@@ -40,15 +40,19 @@ export type WorkflowBenchmark = { id: string; project_id: string; workflow_type:
 export type BenchmarkSummary = { project_id: string; measured_hours_saved: number; projected_monthly_hours_saved: number; measured_sample_count: number; projected_monthly_sample_count: number; record_count: number; synthetic_data_present: boolean; label: string; workflows: Array<{ workflow_type: WorkflowType; measured_hours_saved: number; projected_monthly_hours_saved: number; measured_sample_count: number; projected_monthly_sample_count: number }> };
 export type ExecutiveSummary = { project_id: string; critical_deviations: number; equipment_at_risk: number; schedule_exposure_days: number; supply_chain_alerts: number; commissioning_readiness: number | null; open_ncrs: number; measured_hours_saved: number; projected_monthly_hours_saved: number; recommended_mitigation: string | null; evidence_confidence: number | null; synthetic_data: boolean };
 
+export type ApiErrorDetail = { type?: string; msg?: string; loc?: Array<string | number>; ctx?: Record<string, unknown> };
+
 export class ApiError extends Error {
-  constructor(message: string, public status: number) { super(message); }
+  constructor(message: string, public status: number, public details?: ApiErrorDetail[]) { super(message); }
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`${baseUrl}${path}`, { ...init, headers: { ...(init?.body instanceof FormData ? {} : { "Content-Type": "application/json" }), ...init?.headers } });
   if (!response.ok) {
-    const body = await response.json().catch(() => null) as { error?: { message?: string } } | null;
-    throw new ApiError(body?.error?.message ?? `Request failed (${response.status})`, response.status);
+    const body = await response.json().catch(() => null) as { error?: { message?: string; details?: ApiErrorDetail[] } } | null;
+    // Keep `details`: the API reports which field failed and why, and the
+    // envelope message on its own ("Request validation failed") is not actionable.
+    throw new ApiError(body?.error?.message ?? `Request failed (${response.status})`, response.status, body?.error?.details);
   }
   return response.json() as Promise<T>;
 }
