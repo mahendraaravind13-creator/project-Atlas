@@ -33,23 +33,30 @@ function EvidenceDrawer({ title = "Evidence", evidence, onClose }: { title?: str
 type Identity = { user: AuthUser | null; reason: string | null };
 
 /**
- * Ask the API who the caller is. A 401 is a normal answer meaning "sign in",
- * not a failure to report; anything else is a connectivity problem worth
- * showing.
+ * Ask the API who the caller is.
+ *
+ * Only a 401 sends the user to the sign-in screen. That is the single case where
+ * signing in is what the API is asking for, and where a password can actually
+ * change the outcome.
+ *
+ * Everything else - a 404 from an API that predates authentication, a 5xx, a
+ * network failure, a CORS rejection because the dashboard is served from an
+ * origin the API does not allow - loads the workspace unauthenticated instead.
+ * An earlier version showed the sign-in form for these too, which was strictly
+ * worse than the behaviour it replaced: the form cannot succeed when the API is
+ * unreachable, so the user was left staring at a login they had no way past,
+ * where before they got the dashboard and a per-panel error explaining what had
+ * actually failed. A sign-in screen is only ever the right answer to a 401.
  */
 async function fetchIdentity(): Promise<Identity> {
   try {
     return { user: await api.me(), reason: null };
   } catch (error) {
     if (error instanceof ApiError && error.status === 401) return { user: null, reason: null };
-    // 404 means the endpoint does not exist, so the API predates
-    // authentication. Carry on unauthenticated rather than showing a sign-in
-    // screen no deployed API could satisfy - this dashboard has to work against
-    // an API that has not been redeployed yet.
-    if (error instanceof ApiError && error.status === 404) {
-      return { user: { id: "0", email: "anonymous (authentication unavailable)", is_active: true }, reason: null };
-    }
-    return { user: null, reason: "Unable to reach Project Atlas. Check the API service and try again." };
+    return {
+      user: { id: "0", email: "anonymous (authentication unavailable)", is_active: true },
+      reason: null,
+    };
   }
 }
 

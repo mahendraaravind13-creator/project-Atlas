@@ -56,6 +56,16 @@ describe("Atlas demo dashboard", () => {
     expect(withoutAuth).not.toContain("anonymous (authentication disabled)");
   });
 
+  it("keeps the workspace reachable when the API is unreachable", () => {
+    // A CORS rejection or a dead API must not present a sign-in form: signing in
+    // cannot fix either, and the form has no way to succeed. The workspace loads
+    // and reports the failure per panel, as it did before sign-in existed.
+    const unreachable = { id: "0", email: "anonymous (authentication unavailable)", is_active: true };
+    const html = renderToStaticMarkup(<SignedInDashboard user={unreachable} onSignOut={null} />);
+    expect(html).toContain("Reset Demo");
+    expect(html).toContain("Project overview");
+  });
+
   it("renders the sign-in form with labelled credential fields", () => {
     const html = renderToStaticMarkup(<Login onSignedIn={() => {}} />);
     expect(html).toContain("Sign in");
