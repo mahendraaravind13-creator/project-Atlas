@@ -166,17 +166,37 @@ jobs:
             # of 1.3 GB API images otherwise.
             docker image prune -af --filter "until=24h" || true
 
-            echo "--- waiting for readiness ---"
+            # Do NOT poll http://127.0.0.1/ready. Once ATLAS_SITE_ADDRESS names
+            # real hostnames, Caddy serves only those and a request to the loop-
+            # back address matches no site - so the gate fails on a rollout that
+            # actually worked. Check the app directly through the container, then
+            # confirm the public URL end to end.
+            public_url=$(grep -E '^ATLAS_PUBLIC_URL=' .env.aws | cut -d= -f2- | tr -d '"' | tr -d "'" | tr -d '\r' | tr -d ' ')
+
+            echo "--- waiting for the API to report ready ---"
+            ready=""
             for attempt in $(seq 1 40); do
-              if curl -fsS --max-time 5 http://127.0.0.1/ready >/dev/null 2>&1; then
-                echo "ready after ${attempt} attempt(s)"
-                curl -fsS http://127.0.0.1/ready
-                exit 0
+              if compose exec -T api curl -fsS --max-time 5 http://127.0.0.1:8000/ready >/dev/null 2>&1; then
+                echo "api ready after ${attempt} attempt(s)"
+                compose exec -T api curl -fsS http://127.0.0.1:8000/ready
+                echo
+                ready=yes
+                break
               fi
               sleep 15
             done
 
-            echo "::error::/ready did not come up"
+            if [ -n "$ready" ]; then
+              # The app is up. Now prove the public path (TLS, routing) works.
+              if [ -n "$public_url" ] && curl -fsS --max-time 20 "${public_url}/ready" >/dev/null 2>&1; then
+                echo "public URL healthy: ${public_url}/ready"
+              elif [ -n "$public_url" ]; then
+                echo "::warning::API is ready but ${public_url}/ready did not respond - check DNS, the certificate, or the security group."
+              fi
+              exit 0
+            fi
+
+            echo "::error::the API did not become ready"
             docker compose -f docker-compose.aws.yml --env-file .env.aws --env-file .env.images ps
             docker compose -f docker-compose.aws.yml --env-file .env.aws --env-file .env.images logs --tail=80 api
             exit 1
