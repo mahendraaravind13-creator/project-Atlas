@@ -79,6 +79,16 @@ services:
       # Caddy terminates TLS and forwards on the compose network.
       FORWARDED_ALLOW_IPS: "*"
 
+      # Authentication. Off unless explicitly enabled, and the API refuses to
+      # issue a token without a signing key rather than falling back to a
+      # predictable default. Both must be listed here: compose passes only the
+      # variables named in this block, so setting them in .env.aws alone leaves
+      # the container without them - which presents as
+      # "JWT_SECRET_KEY is not configured" from a key that is plainly in the file.
+      ATLAS_AUTH_ENABLED: ${ATLAS_AUTH_ENABLED:-false}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-}
+      ATLAS_AUTH_TOKEN_TTL_SECONDS: ${ATLAS_AUTH_TOKEN_TTL_SECONDS:-28800}
+
       ATLAS_ENVIRONMENT: production
       ATLAS_LOG_LEVEL: ${ATLAS_LOG_LEVEL:-INFO}
       # Schema comes from `alembic upgrade head` in the entrypoint. Never let

@@ -37,6 +37,16 @@ import getpass
 import os
 import sys
 import uuid
+from pathlib import Path
+
+# Running this as a file puts scripts/ on sys.path, not the repository root, so
+# `import app` fails. The image deliberately does not pip-install the package -
+# the API imports it from the working directory via `python -m uvicorn` - which
+# leaves this script to put the root on the path itself. Without this the only
+# working invocation was PYTHONPATH=/app, which is not what the docstring said.
+_ROOT = Path(__file__).resolve().parents[1]
+if str(_ROOT) not in sys.path:
+    sys.path.insert(0, str(_ROOT))
 
 from sqlalchemy import select
 
