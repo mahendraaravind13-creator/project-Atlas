@@ -1,5 +1,6 @@
 import asyncio
 import json
+import logging
 import re
 import uuid
 from time import perf_counter
@@ -21,6 +22,13 @@ from app.ingestion import (
     retrieve_parent_chunks,
 )
 from app.llm import GroqGateway
+
+logger = logging.getLogger("atlas.workflow")
+
+# Minimum fused retrieval score for a chunk to count as evidence. Shared by
+# the graph's rrf node and the direct context_bundle path so the two cannot
+# drift apart again.
+MIN_EVIDENCE_SCORE = 0.05
 
 
 class WorkflowState(TypedDict):
@@ -107,12 +115,10 @@ class GroqQueryPlanner:
                         "document_types": ["commissioning_record"]
                     }
                 )
-            print("LLM intent:", plan.intent)
-            print("\n===== RAW PLANNER JSON =====")
-            print(raw)
+            logger.debug("planner_intent intent=%s raw_chars=%d", plan.intent, len(raw))
         except (ValidationError, ValueError, json.JSONDecodeError):
+            logger.debug("planner_fallback reason=invalid_plan_payload")
             return fallback
-        print("Sanitized intent:", plan.intent)
         return _sanitize_query_plan(plan, project_id, query, history, fallback)
 
 
@@ -459,8 +465,10 @@ def build_knowledge_workflow(service: "KnowledgeService"):
         started = perf_counter()
         service_name, endpoint = _route_destination(state["query_plan"])
         if service_name != "knowledge":
-            print("Planner chose:", service_name)
-            print("Continuing as knowledge query.")
+            logger.debug(
+                "route_intent_advisory_only service=%s endpoint=%s; copilot continues on the knowledge path",
+                service_name, endpoint,
+            )
         return {
             "route_service": service_name,
             "route_endpoint": endpoint,
@@ -477,17 +485,7 @@ def build_knowledge_workflow(service: "KnowledgeService"):
             state["query_plan"],
         )
 
-        print("Batch sizes:", [len(b) for b in batches])
-
-        for i, batch in enumerate(batches):
-            print(f"\nQuery {i+1}:")
-            for item in batch[:5]:
-                print(
-                    item.chunk_id,
-                    item.document_type,
-                    item.score,
-                    item.section,
-                )
+        logger.debug("hybrid_retrieve batches=%s", [len(batch) for batch in batches])
 
         ids = list(
             dict.fromkeys(
@@ -509,8 +507,11 @@ def build_knowledge_workflow(service: "KnowledgeService"):
         evidence = _merge_result_batches(state.get("candidate_batches", []), service.settings.hybrid_retrieval_limit)
         if state.get("previous_evidence"):
             evidence = _merge_result_batches([state["previous_evidence"], evidence], service.settings.hybrid_retrieval_limit)
-        evidence = [item for item in evidence if item.project_id == uuid.UUID(state["project_id"]) and item.score > 0.05]
-        print("After RRF:", len(evidence))
+        evidence = [
+            item for item in evidence
+            if item.project_id == uuid.UUID(state["project_id"]) and item.score > MIN_EVIDENCE_SCORE
+        ]
+        logger.debug("rrf_fused kept=%d", len(evidence))
         return {"evidence": evidence, "stage_latency_ms": _timing(state, "rrf", started)}
 
     async def rerank(state: KnowledgeState) -> dict[str, object]:
@@ -539,21 +540,13 @@ def build_knowledge_workflow(service: "KnowledgeService"):
             state.get("expanded_items", []),
             state.get("revision_conflicts", []),
         )
-        print("Context chunks:", len(context.chunks))
-        print("Sections:", [c.section for c in context.chunks])
+        logger.debug("context_compressed chunks=%d tokens=%d", len(context.chunks), context.total_tokens)
         return {"context_bundle": context, "stage_latency_ms": _timing(state, "compress", started)}
 
     def evidence_gate(state: KnowledgeState) -> dict[str, object]:
         started = perf_counter()
         context, plan = state["context_bundle"], state["query_plan"]
         reasons = service._sufficiency(context, plan)
-        
-        
-        print("Sufficiency:", not reasons)
-        print("Reasons:", reasons)
-        
-        
-        
         corrective = _corrective_query(state["rewritten_question"], plan, reasons) if reasons else None
         context = context.model_copy(
             update={
@@ -563,7 +556,7 @@ def build_knowledge_workflow(service: "KnowledgeService"):
                 "corrective_query": corrective,
             }
         )
-        print("Context sufficient:", context.sufficient)
+        logger.debug("evidence_gate sufficient=%s reasons=%s", context.sufficient, reasons)
         return {
             "context_bundle": context,
             "corrective_query": corrective or "",
@@ -594,15 +587,16 @@ def build_knowledge_workflow(service: "KnowledgeService"):
             if not context.sufficient
             else await service._generate_answer(state["rewritten_question"], context)
         )
-        print("\n===== GENERATED =====")
-        print(generated)
+        logger.debug("answer_generated status=%s", getattr(generated, "status", None))
         return {"generated_answer": generated, "stage_latency_ms": _timing(state, "generate", started)}
 
     async def verify_claims(state: KnowledgeState) -> dict[str, object]:
         started = perf_counter()
         answer = await service._verify_answer(state["generated_answer"], state["context_bundle"])
-        print("\n===== VERIFIED =====")
-        print(answer)
+        logger.debug(
+            "answer_verified status=%s claims=%d citations=%d",
+            answer.status, len(answer.claims), len(answer.citations),
+        )
         return {"answer_result": answer, "stage_latency_ms": _timing(state, "verify_claims", started)}
 
     def finalize(state: KnowledgeState) -> dict[str, object]:
@@ -772,23 +766,22 @@ class KnowledgeService:
     async def _retrieve_evidence(self, project_id: str, question: str, plan: QueryPlan) -> list[RetrievalResult]:
         batches = await self._retrieve_batches(project_id, question, plan)
         results = _merge_result_batches(batches, self.settings.hybrid_retrieval_limit)
-
-        print("Retrieved:", len(results))
-        for r in results[:5]:
-                print(r.document_type, r.score, getattr(r, "rerank_score", None), r.section)
-
-        return results      # <-- temporarily remove the score filter
-
+        scoped = uuid.UUID(project_id)
+        results = [
+            item for item in results
+            if item.project_id == scoped and item.score > MIN_EVIDENCE_SCORE
+        ]
+        logger.debug("retrieve_evidence kept=%d", len(results))
+        return results
 
     async def _retrieve_batches(
         self, project_id: str, question: str, plan: QueryPlan
     ) -> list[list[RetrievalResult]]:
         parsed_project_id = uuid.UUID(project_id)
-        
-        
-        print("Plan document_types:", plan.document_types)
-        print("Plan equipment_ids:", plan.equipment_ids)
-        print("Plan subqueries:", plan.subqueries)
+        logger.debug(
+            "retrieve_batches document_types=%s equipment_ids=%s subqueries=%d",
+            plan.document_types, plan.equipment_ids, len(plan.subqueries),
+        )
         if plan.project_id != parsed_project_id:
             raise IngestionError("project_scope_mismatch", "Query plan project does not match the request", 400)
         queries = plan.subqueries[:3] if len(plan.subqueries) > 1 and _is_multi_part(plan.standalone_query) else [question]
@@ -878,9 +871,6 @@ def _evidence_sufficiency(context: ContextBundle, plan: QueryPlan, settings: Set
     if _requires_value(context.query) and not re.search(r"\b\d+(?:\.\d+)?\b", " ".join(chunk.text for chunk in chunks)):
         reasons.append("answer-bearing values are missing")
     scores = [chunk.rerank_score for chunk in chunks]
-    print("Rerank scores:", scores)
-    print("Threshold:", settings.reranker_score_threshold)
-
     if chunks and max(scores) < settings.reranker_score_threshold:
         reasons.append("reranker score is below threshold")
     return reasons

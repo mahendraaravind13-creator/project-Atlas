@@ -296,6 +296,14 @@ def _manual_effort(path: Path) -> dict[str, Any]:
     }
 
 
+def _provenance_lines(report: dict[str, Any]) -> list[str]:
+    provenance = report.get("provenance") or {}
+    if not provenance:
+        return []
+    rows = "\n".join(f"| {key.replace(chr(95), chr(32))} | {value} |" for key, value in provenance.items())
+    return ["## Provenance", "", "| Field | Value |", "| --- | --- |", rows, ""]
+
+
 def _markdown(report: dict[str, Any]) -> str:
     lines = [
         "# Project Atlas Evaluation",
@@ -333,7 +341,23 @@ async def evaluate_all(
         _require(truth, key, ground_truth_path)
     supply_source = _required_json(SUPPLY_CHAIN_DATA)
     manual = _manual_effort(manual_time_path)
-    settings = Settings(gemini_api_key=None)
+    # groq_api_key=None forces the deterministic path. The field name must match
+    # the real setting: Settings uses extra="ignore", so a wrong name is dropped
+    # silently and the harness would quietly make live provider calls.
+    settings = Settings(groq_api_key=None)
+    if settings.groq_api_key is not None:
+        raise EvaluationInputError(
+            "Deterministic evaluation requires groq_api_key to be unset; "
+            "the override was ignored, so results could include live model calls."
+        )
+    provenance = {
+        "llm_calls": "none",
+        "generation": "deterministic extractive responder",
+        "embedding_backend": settings.embedding_backend,
+        "embedding_model": (
+            settings.embedding_model if settings.embedding_backend == "sentence_transformer" else "n/a"
+        ),
+    }
     with tempfile.TemporaryDirectory(prefix="atlas-all-eval-") as directory:
         workspace = Path(directory)
         rag_report = await evaluate_rag(workspace / "rag")
@@ -344,6 +368,7 @@ async def evaluate_all(
             "supply_chain": await _supply_chain_metrics(supply_source, workspace),
             "commissioning": await _commissioning_metrics(truth, settings, workspace),
             "manual_effort": manual,
+            "provenance": provenance,
         }
     output_dir.mkdir(parents=True, exist_ok=True)
     (output_dir / "latest.json").write_text(json.dumps(report, indent=2, sort_keys=True) + "\n")

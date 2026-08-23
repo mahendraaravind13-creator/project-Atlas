@@ -17,7 +17,7 @@ from qdrant_client import AsyncQdrantClient, models
 from app.config import Settings
 from app.context import ContextBundle, ContextChunk, EvidenceSpan, LexicalReranker, PostRetrievalProcessor
 from app.ingestion import (
-    LocalHashEmbedder,
+    build_embedder,
     RetrievalResult,
     _payload,
     _retrieval_result,
@@ -108,7 +108,7 @@ async def build_index(
     *,
     contextual: bool = True,
 ):
-    embedder = LocalHashEmbedder(settings)
+    embedder = build_embedder(settings)
     catalog: dict[str, tuple[str, int]] = {}
     for document_type, path in sources():
         document_id = uuid.uuid5(project_id, path.name)
@@ -380,8 +380,15 @@ def markdown(report: dict[str, Any]) -> str:
 
 async def evaluate(output_dir: Path) -> dict[str, Any]:
     project_id = uuid.uuid5(uuid.NAMESPACE_DNS, "atlas-rag-evaluation")
+    # Defaults to the deterministic hash backend so the committed numbers stay
+    # reproducible offline. Set ATLAS_EMBEDDING_BACKEND=sentence_transformer to
+    # measure real semantic retrieval; dimensions follow the chosen backend.
+    configured = Settings()
+    semantic = configured.embedding_backend == "sentence_transformer"
     settings = Settings(
-        embedding_dimensions=128,
+        embedding_backend=configured.embedding_backend,
+        embedding_model=configured.embedding_model,
+        embedding_dimensions=configured.embedding_dimensions if semantic else 128,
         qdrant_collection="atlas_rag_evaluation",
         context_min_chunks=1,
     )

@@ -25,7 +25,7 @@ class Settings(BaseSettings):
     )
 
     database_url: str = Field(
-        default="postgresql+asyncpg://atlas:atlas@localhost:5433/atlas",
+        default="postgresql+asyncpg://atlas:atlas@localhost:55432/atlas",
         validation_alias=AliasChoices(
             "DATABASE_URL",
             "ATLAS_DATABASE_URL",

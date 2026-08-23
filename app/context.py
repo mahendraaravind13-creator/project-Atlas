@@ -79,7 +79,6 @@ class CrossEncoderReranker:
             return []
         try:
             scores = await asyncio.to_thread(_predict, self.model_name, query, texts)
-            print("Raw scores:", scores)
             return [round(_normalize_score(float(score)), 6) for score in scores]
         except Exception as exc:
             logger.warning("cross_encoder_unavailable model=%s error=%s", self.model_name, type(exc).__name__)

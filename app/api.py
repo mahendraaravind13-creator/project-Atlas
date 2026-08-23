@@ -1,5 +1,5 @@
+import logging
 import mimetypes
-from urllib import request
 import uuid
 from collections.abc import AsyncIterator
 from pathlib import Path
@@ -73,6 +73,8 @@ from app.procurement import (
 )
 from app.schedule import ScheduleAnalysis, ScheduleScenario, ScheduleSnapshot
 from app.workflow import ConversationMessage, CopilotResult, QueryPlanResult, RfiResult
+
+logger = logging.getLogger("atlas.api")
 
 router = APIRouter(prefix="/projects", tags=["projects"])
 evaluation_router = APIRouter(prefix="/api/evaluation", tags=["evaluation"])
@@ -340,12 +342,9 @@ async def retrieve(
     request: Request,
     session: AsyncSession = Depends(get_session),
 ) -> RetrievalResponse:
-    print("API project_id:", project_id)
-
     await _project_or_404(session, project_id)
 
     plan = await request.app.state.knowledge_service.query_plan(project_id, payload.query, [])
-    print("PLAN:", plan)
 
     results = await retrieve_chunks(
         request.app.state.qdrant,
@@ -357,8 +356,7 @@ async def retrieve(
         query_plan=plan,
     )
 
-    print("Retrieved", len(results), "chunks")
-
+    logger.debug("retrieve project=%s results=%d", project_id, len(results))
     return RetrievalResponse(results=results)
 @router.post("/{project_id}/context", response_model=ContextBundle)
 async def build_context(
