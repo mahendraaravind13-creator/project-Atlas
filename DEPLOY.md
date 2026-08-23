@@ -6,7 +6,7 @@
 - **Render:** create the API service from [`render.yaml`](render.yaml). Render supplies `PORT`; the start command runs `alembic upgrade head` before `uvicorn app.main:app --port $PORT`. The build installs `requirements.lock` (not the `>=` floors in `pyproject.toml`) so a deploy matches what CI tested, and pre-fetches the embedding and reranker weights so the first query is not a multi-second download.
 - **Supabase:** provide the PostgreSQL connection as an async SQLAlchemy `DATABASE_URL` (`postgresql+asyncpg://…`); Supabase Auth and Storage variables remain backend-only.
 - **Qdrant Cloud:** configure `QDRANT_URL` and `QDRANT_API_KEY` on Render.
-- **Groq:** FastAPI reads `GROQ_API_KEY` and `GROQ_MODEL`; the frontend never calls Groq directly.
+- **Model providers:** FastAPI reads `ATLAS_LLM_PROVIDERS` (an ordered, comma-separated list) plus one API key per provider, and fails over on rate limits or outages. Configure at least two: free tiers have small daily caps, and a single exhausted provider otherwise takes generation down until it resets. The frontend never calls a provider directly.
 
 ## Environment variables
 

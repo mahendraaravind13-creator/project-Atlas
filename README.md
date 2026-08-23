@@ -74,7 +74,7 @@ flowchart LR
 - **Backend:** FastAPI, SQLAlchemy, Alembic, LangGraph.
 - **Data:** PostgreSQL (Supabase-compatible deployment), Qdrant, NetworkX prototype graph.
 - **Document processing:** PyMuPDF, optional Tesseract OCR, CSV parser.
-- **AI:** Groq (`openai/gpt-oss-120b` by default, set via `GROQ_MODEL`) through a backend-only gateway for generation; sentence-transformers `all-MiniLM-L6-v2` for semantic embeddings and `ms-marco-MiniLM-L-6-v2` for reranking. A deterministic non-semantic hash embedder (`ATLAS_EMBEDDING_BACKEND=local_hash`) is retained for offline runs and the evaluation harness.
+- **AI:** a backend-only gateway that routes generation across OpenAI-compatible providers in a configured order (`ATLAS_LLM_PROVIDERS`), failing over on rate limits and outages - Groq, OpenRouter, Gemini, NVIDIA, SiliconFlow, ModelScope, Mistral, Hugging Face, Ollama and LLM7 are registered; sentence-transformers `all-MiniLM-L6-v2` for semantic embeddings and `ms-marco-MiniLM-L-6-v2` for reranking. A deterministic non-semantic hash embedder (`ATLAS_EMBEDDING_BACKEND=local_hash`) is retained for offline runs and the evaluation harness.
 
 ## Evaluation results
 

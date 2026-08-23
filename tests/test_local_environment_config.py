@@ -101,7 +101,7 @@ def test_session_is_isolated_from_the_model_provider() -> None:
     """
     Fails loudly if tests/conftest.py stops isolating the session.
 
-    A visible GROQ_API_KEY makes GroqQueryPlanner build a live client, so the
+    A visible GROQ_API_KEY makes LLMQueryPlanner build a live client, so the
     planner tests call the provider for real: non-deterministic, ~4x slower, and
     billable until the daily token limit returns 429.
     """

@@ -5,13 +5,13 @@ import pytest
 
 from app.config import Settings
 from app.ingestion import IngestionError
-from app.workflow import ConversationMessage, GroqQueryPlanner, KnowledgeService
+from app.workflow import ConversationMessage, LLMQueryPlanner, KnowledgeService
 
 
 @pytest.mark.asyncio
 async def test_standalone_question_preserves_original_query() -> None:
     project_id = uuid.uuid4()
-    plan = await GroqQueryPlanner(Settings()).plan(project_id, "What is the UPS-A battery autonomy?", [])
+    plan = await LLMQueryPlanner(Settings()).plan(project_id, "What is the UPS-A battery autonomy?", [])
 
     assert plan.original_query == "What is the UPS-A battery autonomy?"
     assert plan.standalone_query == plan.original_query
@@ -21,7 +21,7 @@ async def test_standalone_question_preserves_original_query() -> None:
 
 @pytest.mark.asyncio
 async def test_follow_up_uses_recent_conversation_context() -> None:
-    plan = await GroqQueryPlanner(Settings()).plan(
+    plan = await LLMQueryPlanner(Settings()).plan(
         uuid.uuid4(),
         "What about its voltage?",
         [ConversationMessage(role="user", content="What are the UPS-A battery requirements?")],
@@ -33,7 +33,7 @@ async def test_follow_up_uses_recent_conversation_context() -> None:
 
 @pytest.mark.asyncio
 async def test_subqueries_are_limited_to_genuinely_multi_part_questions() -> None:
-    planner, project_id = GroqQueryPlanner(Settings()), uuid.uuid4()
+    planner, project_id = LLMQueryPlanner(Settings()), uuid.uuid4()
 
     single = await planner.plan(project_id, "What is UPS-A battery autonomy?", [])
     multi = await planner.plan(
@@ -48,7 +48,7 @@ async def test_subqueries_are_limited_to_genuinely_multi_part_questions() -> Non
 
 @pytest.mark.asyncio
 async def test_ambiguous_filters_are_left_empty() -> None:
-    plan = await GroqQueryPlanner(Settings()).plan(uuid.uuid4(), "Show vendor documents.", [])
+    plan = await LLMQueryPlanner(Settings()).plan(uuid.uuid4(), "Show vendor documents.", [])
 
     assert plan.document_types == []
     assert plan.document_ids == []
@@ -80,7 +80,7 @@ class FakeGateway:
 @pytest.mark.asyncio
 async def test_planner_enforces_project_isolation_and_supported_ids() -> None:
     project_id = uuid.uuid4()
-    plan = await GroqQueryPlanner(Settings(), FakeGateway()).plan(project_id, "Find UPS-A information.", [])
+    plan = await LLMQueryPlanner(Settings(), FakeGateway()).plan(project_id, "Find UPS-A information.", [])
 
     assert plan.project_id == project_id
     assert plan.original_query == "Find UPS-A information."
@@ -116,7 +116,7 @@ async def test_provider_outage_falls_back_to_the_deterministic_plan() -> None:
             raise IngestionError("model_gateway_error", "AI provider request failed", 502)
 
     project_id = uuid.uuid4()
-    plan = await GroqQueryPlanner(Settings(), OutageGateway()).plan(
+    plan = await LLMQueryPlanner(Settings(), OutageGateway()).plan(
         project_id, "What is the minimum UPS-A battery autonomy?", []
     )
 

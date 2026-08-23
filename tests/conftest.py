@@ -3,7 +3,7 @@ Isolates the test session from the developer's local environment.
 
 `Settings` reads `.env`, and OS environment variables outrank it, so without
 this the suite inherits whatever the machine happens to have configured. With a
-real `GROQ_API_KEY` present that is not a cosmetic problem: GroqQueryPlanner
+real `GROQ_API_KEY` present that is not a cosmetic problem: LLMQueryPlanner
 builds a live client and the planner tests call the provider for real. That
 makes results depend on network and quota, slows the suite by roughly 4x, spends
 billable tokens, and eventually fails with 429 once the daily limit is reached.

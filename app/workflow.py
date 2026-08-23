@@ -21,7 +21,7 @@ from app.ingestion import (
     retrieve_chunks,
     retrieve_parent_chunks,
 )
-from app.llm import GroqGateway
+from app.llm import LLMGateway
 
 logger = logging.getLogger("atlas.workflow")
 
@@ -83,9 +83,9 @@ class Planner(Protocol):
     async def plan(self, project_id: uuid.UUID, query: str, history: list[ConversationMessage]) -> QueryPlan: ...
 
 
-class GroqQueryPlanner:
-    def __init__(self, settings: Settings, gateway: GroqGateway | None = None) -> None:
-        self.gateway = gateway or GroqGateway(settings)
+class LLMQueryPlanner:
+    def __init__(self, settings: Settings, gateway: LLMGateway | None = None) -> None:
+        self.gateway = gateway or LLMGateway(settings)
 
     async def plan(self, project_id: uuid.UUID, query: str, history: list[ConversationMessage]) -> QueryPlan:
         fallback = _local_query_plan(project_id, query, history)
@@ -376,9 +376,9 @@ class Responder(Protocol):
     async def answer(self, question: str, context: ContextBundle) -> AnswerResult: ...
 
 
-class GroqResponder:
-    def __init__(self, settings: Settings, gateway: GroqGateway | None = None) -> None:
-        self.gateway = gateway or GroqGateway(settings)
+class LLMResponder:
+    def __init__(self, settings: Settings, gateway: LLMGateway | None = None) -> None:
+        self.gateway = gateway or LLMGateway(settings)
 
     async def rewrite(self, question: str, history: list[ConversationMessage]) -> str:
         if not history:
@@ -743,8 +743,8 @@ class KnowledgeService:
         postprocessor: PostRetrievalProcessor | None = None,
     ) -> None:
         self.settings, self.qdrant, self.embedder = settings, qdrant, embedder
-        self.responder = responder or GroqResponder(settings)
-        self.planner = planner or GroqQueryPlanner(settings)
+        self.responder = responder or LLMResponder(settings)
+        self.planner = planner or LLMQueryPlanner(settings)
         self.postprocessor = postprocessor or PostRetrievalProcessor(settings, parent_loader=self._load_parent)
         self.copilot_workflow = build_knowledge_workflow(self)
         self.rfi_workflow = build_rfi_workflow(self._retrieve_answered_rfis)
@@ -949,7 +949,7 @@ async def _ground_answer(
     generated: _GeneratedAnswer,
     citation_map: dict[str, ContextChunk],
     context: ContextBundle,
-    gateway: GroqGateway,
+    gateway: LLMGateway,
 ) -> AnswerResult:
     known = set(citation_map)
     used = set(generated.citation_ids)
@@ -1036,7 +1036,7 @@ def _deterministic_support(
 
 
 async def _semantic_verify(
-    gateway: GroqGateway,
+    gateway: LLMGateway,
     claims: list[_GeneratedClaim],
     uncertain: list[int],
     citation_map: dict[str, ContextChunk],

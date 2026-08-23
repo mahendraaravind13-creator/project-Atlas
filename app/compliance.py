@@ -13,7 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import Settings
 from app.equipment import document_equipment_id
 from app.ingestion import Citation, IngestionError, _extract_text, _extract_pdf, _extract_schedule, entity_references
-from app.llm import GroqGateway
+from app.llm import LLMGateway
 from app.models import AuditEvent, ComplianceFinding, Document
 
 ComplianceStatus = Literal["COMPLIANT", "NON_COMPLIANT", "MISSING_INFORMATION", "NEEDS_REVIEW"]
@@ -94,7 +94,7 @@ class ComplianceMetrics(BaseModel):
 
 class ComplianceExplainer:
     def __init__(self, settings: Settings) -> None:
-        self.gateway = GroqGateway(settings)
+        self.gateway = LLMGateway(settings)
 
     async def explain(self, draft: FindingDraft) -> str:
         if not self.gateway.client:

@@ -142,6 +142,47 @@ class Settings(BaseSettings):
         ),
     )
 
+    # Ordered provider preference. Every entry must name a key in
+    # app.llm.PROVIDERS; one without an API key present is skipped, so a shared
+    # list works across machines holding different keys. Listing more than one
+    # is what stops a single provider's daily cap from taking generation down.
+    llm_providers: str = "groq"
+
+    # Optional single override applied to whichever provider serves a request,
+    # for pinning one model across providers. Per-provider *_MODEL wins over it.
+    llm_model: str | None = None
+
+    llm_timeout_seconds: float = Field(default=30.0, gt=0)
+
+    @property
+    def llm_provider_order(self) -> list[str]:
+        return [name.strip().lower() for name in self.llm_providers.split(",") if name.strip()]
+
+    def provider_api_key(self, provider) -> str | None:
+        """
+        Key for one provider, from its documented variable name.
+
+        Reads os.environ directly rather than declaring a field per provider:
+        the registry is data, and a new provider should not require a schema
+        change. Groq keeps its typed field so existing setups keep working.
+        """
+        import os
+
+        if provider.name == "groq" and self.groq_api_key:
+            return self.groq_api_key
+        return os.environ.get(provider.key_env) or os.environ.get(f"ATLAS_{provider.key_env}") or None
+
+    def provider_model(self, provider) -> str:
+        """Per-provider override, then the global override, then the registry default."""
+        import os
+
+        if provider.name == "groq":
+            return self.groq_model
+        specific = os.environ.get(f"{provider.name.upper()}_MODEL") or os.environ.get(
+            f"ATLAS_{provider.name.upper()}_MODEL"
+        )
+        return specific or self.llm_model or provider.default_model
+
     rfi_similarity_threshold: float = 0.75
 
     graph_dir: str = "./graphs"

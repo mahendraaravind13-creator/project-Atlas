@@ -30,6 +30,16 @@ services:
       - key: GROQ_API_KEY
         sync: false
 
+      # --- LLM provider order. Extra providers are skipped without a key,
+      # so a second entry costs nothing and survives the first hitting its
+      # daily cap. See app/llm.py PROVIDERS for the registry. ---
+      - key: ATLAS_LLM_PROVIDERS
+        value: groq,openrouter,gemini
+      - key: OPENROUTER_API_KEY
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+
       # --- Optional. Defaults live in app/config.py. ---
       - key: GROQ_MODEL
         value: openai/gpt-oss-120b

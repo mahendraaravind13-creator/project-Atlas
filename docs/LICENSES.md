@@ -11,7 +11,7 @@ This summary is based on `pyproject.toml`, `requirements.lock`, `requirements-de
 | Component | Declared license |
 | --- | --- |
 | FastAPI, Alembic, LangGraph, Pydantic Settings, SQLAlchemy | MIT |
-| asyncpg, Groq Python SDK, python-multipart, qdrant-client, sentence-transformers, transformers, huggingface-hub | Apache-2.0 |
+| asyncpg, OpenAI Python SDK, python-multipart, qdrant-client, sentence-transformers, transformers, huggingface-hub | Apache-2.0 |
 | NetworkX, Uvicorn, PyTorch, NumPy, SciPy | BSD family |
 | Pillow | MIT-CMU |
 | pytesseract | Apache-2.0 |
@@ -39,4 +39,4 @@ Retrieval and reranking download model weights at first use, which are licensed 
 | `cross-encoder/ms-marco-MiniLM-L-6-v2` | reranking | Apache-2.0 |
 
 Weights are fetched from Hugging Face at runtime and are not redistributed in this repository. A deployment that vendors them must retain their model cards and licenses.
-Groq is accessed as a hosted API; its terms of service govern use, and no Groq model weights are distributed here.
+Model providers are accessed as hosted APIs through the OpenAI-compatible wire format; each provider's own terms govern use, and no provider model weights are distributed here.
