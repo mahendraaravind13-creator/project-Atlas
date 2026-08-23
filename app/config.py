@@ -25,7 +25,7 @@ class Settings(BaseSettings):
     )
 
     database_url: str = Field(
-        default="postgresql+asyncpg://atlas:atlas@localhost:55432/atlas",
+        default="postgresql+asyncpg://atlas:atlas@localhost:5433/atlas",
         validation_alias=AliasChoices(
             "DATABASE_URL",
             "ATLAS_DATABASE_URL",
@@ -135,7 +135,7 @@ class Settings(BaseSettings):
     auto_create_schema: bool = False
 
     groq_model: str = Field(
-        default="llama-3.3-70b-versatile",
+        default="openai/gpt-oss-120b",
         validation_alias=AliasChoices(
             "GROQ_MODEL",
             "ATLAS_GROQ_MODEL",

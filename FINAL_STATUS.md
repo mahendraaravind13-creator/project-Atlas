@@ -105,4 +105,4 @@ python3 -m pytest -q
 - Create a commit, run a full-history secret scan, publish the repository, and verify it signed out.
 - Export and verify the final pitch deck; record and verify the public demo video; complete Unstop submission checks.
 - Verify one cited response with a valid Gemini key/model before presenting live-provider behavior.
-- Atlas local PostgreSQL now binds to host port 55432 to avoid the unrelated service occupying port 5432.
+- Atlas local PostgreSQL binds to host port 5433 to avoid the unrelated service occupying port 5432.

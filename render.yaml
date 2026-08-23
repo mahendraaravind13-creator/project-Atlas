@@ -32,7 +32,7 @@ services:
 
       # --- Optional. Defaults live in app/config.py. ---
       - key: GROQ_MODEL
-        value: llama-3.3-70b-versatile
+        value: openai/gpt-oss-120b
       - key: SUPABASE_URL
         sync: false
       - key: SUPABASE_SERVICE_ROLE_KEY

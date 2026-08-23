@@ -215,6 +215,7 @@ pyyaml==6.0.3
     # via
     #   huggingface-hub
     #   langchain-core
+    #   project-atlas (pyproject.toml)
     #   transformers
     #   uvicorn
 qdrant-client==1.19.0

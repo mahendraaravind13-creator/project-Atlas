@@ -215,18 +215,18 @@ def _sanitize_query_plan(
 ) -> QueryPlan:
     context = _context_text(query, history)
     allowed_document_ids = {uuid.UUID(value) for value in re.findall(r"\b[0-9a-fA-F]{8}(?:-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}\b", context)}
-    allowed_equipment = set(entity_references(context)["equipment_tags"])
+    allowed_equipment = entity_references(context)["equipment_tags"]
     vendor_ids = [value for value in plan.vendor_ids if re.search(rf"\b{re.escape(value)}\b", context, re.IGNORECASE)]
     revision_status = plan.revision_status if plan.revision_status and plan.revision_status.lower() in context.lower() else None
     section = plan.section if plan.section and plan.section.lower() in context.lower() else None
-    standalone = plan.standalone_query.strip() or fallback.standalone_query
+    standalone = (fallback.standalone_query if fallback.standalone_query == query else plan.standalone_query.strip() or fallback.standalone_query)
     return plan.model_copy(
         update={
             "original_query": query,
             "standalone_query": standalone,
             "project_id": project_id,
             "document_ids": [value for value in plan.document_ids if value in allowed_document_ids],
-            "equipment_ids": [value for value in plan.equipment_ids if value in allowed_equipment],
+            "equipment_ids": allowed_equipment,
             "vendor_ids": vendor_ids,
             "revision_status": revision_status,
             "section": section,
@@ -235,16 +235,37 @@ def _sanitize_query_plan(
     )
 
 
-def _validated_subqueries(query: str, proposed: list[str]) -> list[str]:
+def _validated_subqueries(query: str, _proposed: list[str]) -> list[str]:
+    """
+    Subqueries for a multi-part question.
+
+    `_proposed` is what the model suggested. It is intentionally ignored: the
+    deterministic split is reproducible and cannot invent a subquery the user
+    never asked. The parameter is kept so the call site still documents that the
+    planner returns them and that we choose not to trust them.
+    """
     if not _is_multi_part(query):
         return []
-    values = list(dict.fromkeys(value.strip() for value in proposed if value.strip()))[:3]
-    return values if len(values) > 1 else _split_subqueries(query)
+    return _split_subqueries(query)
 
 
 def _split_subqueries(query: str) -> list[str]:
-    parts = [part.strip(" ,?.") for part in re.split(r"\s+(?:and|also)\s+|[;?]+", query, flags=re.IGNORECASE)]
+    # Prefer explicit separators such as semicolons.
+    parts = [
+        part.strip(" ,?.")
+        for part in re.split(r"[;?]+", query)
+    ]
     parts = [part for part in parts if len(part.split()) >= 2]
+
+    # If there are no explicit separators, allow "and" to define
+    # genuinely separate questions.
+    if len(parts) <= 1:
+        parts = [
+            part.strip(" ,?.")
+            for part in re.split(r"\s+(?:and|also)\s+", query, flags=re.IGNORECASE)
+        ]
+        parts = [part for part in parts if len(part.split()) >= 2]
+
     return list(dict.fromkeys(parts))[:3] if len(parts) > 1 else []
 
 
