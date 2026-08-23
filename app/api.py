@@ -4,7 +4,7 @@ import uuid
 from collections.abc import AsyncIterator
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
+from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, Request, UploadFile
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
@@ -27,7 +27,13 @@ from app.benchmarks import (
 from app.compliance import ComplianceFindingResponse, ComplianceMetrics, evaluate_ground_truth, finding_response, review_finding
 from app.context import ContextBundle
 from app.equipment import DigitalThreadResponse, equipment_digital_thread, store_mitigation_scenarios, store_procurement_entities
-from app.evaluation import EvaluationRunRequest, EvaluationRunResponse, get_evaluation_run, run_evaluation
+from app.evaluation import (
+    EvaluationRunRequest,
+    EvaluationRunResponse,
+    create_pending_run,
+    execute_evaluation_run,
+    get_evaluation_run,
+)
 from app.demo import VerticalDemoResponse, seed_vertical_demo
 from app.executive import ExecutiveSummary, executive_summary
 from app.ingestion import DocumentType, IngestionError, RetrievalResult, file_hash, retrieve_chunks, run_ingestion, validate_upload
@@ -849,21 +855,39 @@ async def decide_impact_chain(
     return result
 
 
-@evaluation_router.post("/run", response_model=EvaluationRunResponse, status_code=201)
+async def _execute_evaluation_run(app, payload: EvaluationRunRequest, run_id: uuid.UUID) -> None:
+    """Background worker: owns its own session, because the request's is closed."""
+    async with app.state.session_factory() as session:
+        await execute_evaluation_run(
+            session,
+            run_id,
+            payload,
+            app.state.compliance_service,
+            app.state.knowledge_service,
+            app.state.qdrant,
+            app.state.settings,
+        )
+
+
+@evaluation_router.post("/run", response_model=EvaluationRunResponse, status_code=202)
 async def create_evaluation_run(
     payload: EvaluationRunRequest,
     request: Request,
+    background: BackgroundTasks,
     session: AsyncSession = Depends(get_session),
 ) -> EvaluationRunResponse:
+    """
+    Accept the run and return the RUNNING row straight away.
+
+    A live RAG case waits on the model provider for around a minute, so
+    executing the fixture inline held the HTTP connection open for minutes and
+    any proxy in front of the API cut it off with a 504 before it finished.
+    Poll `GET /api/evaluation/runs/{run_id}` until `status` leaves RUNNING.
+    """
     await _project_or_404(session, payload.project_id)
-    return await run_evaluation(
-        session,
-        payload,
-        request.app.state.compliance_service,
-        request.app.state.knowledge_service,
-        request.app.state.qdrant,
-        request.app.state.settings,
-    )
+    pending = await create_pending_run(session, payload)
+    background.add_task(_execute_evaluation_run, request.app, payload, pending.id)
+    return pending
 
 
 @evaluation_router.get("/runs/{run_id}", response_model=EvaluationRunResponse)
