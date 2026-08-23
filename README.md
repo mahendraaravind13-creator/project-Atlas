@@ -6,7 +6,7 @@ Built for **ET AI Hackathon 2026 — Problem Statement 4: real-time commissionin
 
 | Resource | Status |
 | --- | --- |
-| Live demo | **Not deployed / not verified** |
+| Live demo | **https://atlas-theproject.duckdns.org** |
 | Demo video | **Not recorded / not verified** |
 | Architecture | [Architecture overview](docs/ARCHITECTURE.md) · [Mermaid source](docs/ARCHITECTURE.mermaid) |
 | Demo walkthrough | [3-minute script](docs/DEMO_SCRIPT.md) |
@@ -174,7 +174,9 @@ Two prepared targets, described in [DEPLOY.md](DEPLOY.md):
 - **AWS, single instance** — one EC2 box runs the API, dashboard, PostgreSQL, Qdrant and Caddy through [`docker-compose.aws.yml`](docker-compose.aws.yml); GitHub Actions builds both images and the instance pulls them, so a push to `main` rolls out. Self-contained, free-tier sized, and uploads are durable on named volumes. See [docs/AWS_DEPLOY.md](docs/AWS_DEPLOY.md).
 - **Render + Vercel** — `frontend` on Vercel and FastAPI on Render using [`render.yaml`](render.yaml), with Supabase-compatible PostgreSQL and Qdrant Cloud configured through backend-only variables. The production start script runs `alembic upgrade head` then Uvicorn on Render’s `$PORT`.
 
-No public deployment has been verified. The container images build and the dashboard image has been smoke-tested locally; nothing has been stood up on a cloud account yet.
+The live demo runs on the AWS target: a single `t3.micro` in `ap-south-1` behind Caddy with a Let's Encrypt certificate, serving the seeded synthetic project (27 documents, 5 shipments, the SWGR-A scenario). `/ready` reports `api`, `database` and `qdrant` healthy.
+
+Two caveats stated plainly. There is **no authentication** - `project_id` is data scoping, not authorization - so anyone with the URL can read and upload; it is a demo on synthetic data, not a production deployment. And the evidence-backed copilot currently returns `INSUFFICIENT_EVIDENCE` on the seeded corpus: retrieval and generation both run, and the claim verifier rejects the answer as ungrounded. The deterministic engines - compliance, schedule, commissioning, digital thread, impact chain - are unaffected.
 
 ## Repository structure
 
