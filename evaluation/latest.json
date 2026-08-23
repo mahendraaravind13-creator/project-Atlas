@@ -33,12 +33,12 @@
   },
   "rag": {
     "advanced": {
-      "average_input_tokens": 122.0,
-      "average_latency_ms": 182.02,
-      "average_output_tokens": 10.0,
-      "citation_precision": 0.0,
-      "correct_document_rate": 0.0,
-      "correct_page_rate": 0.0,
+      "average_input_tokens": 130.67,
+      "average_latency_ms": 177.92,
+      "average_output_tokens": 96.0,
+      "citation_precision": 0.6667,
+      "correct_document_rate": 1.0,
+      "correct_page_rate": 1.0,
       "mrr": 1.0,
       "recall_at_12": 1.0,
       "recall_at_5": 1.0,
@@ -46,7 +46,7 @@
     },
     "baseline": {
       "average_input_tokens": 439.0,
-      "average_latency_ms": 30.51,
+      "average_latency_ms": 30.68,
       "average_output_tokens": 250.0,
       "citation_precision": 1.0,
       "correct_document_rate": 1.0,

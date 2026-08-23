@@ -9,13 +9,13 @@ All metrics are deterministic or directly measured by this command. Synthetic sc
 | recall at 5 | 1.0 | 1.0 |
 | recall at 12 | 1.0 | 1.0 |
 | mrr | 1.0 | 1.0 |
-| correct document rate | 1.0 | 0.0 |
-| correct page rate | 1.0 | 0.0 |
-| citation precision | 1.0 | 0.0 |
+| correct document rate | 1.0 | 1.0 |
+| correct page rate | 1.0 | 1.0 |
+| citation precision | 1.0 | 0.6667 |
 | unsupported claim rate | 0.0 | 0.0 |
-| average input tokens | 439.0 | 122.0 |
-| average output tokens | 250.0 | 10.0 |
-| average latency ms | 30.51 | 182.02 |
+| average input tokens | 439.0 | 130.67 |
+| average output tokens | 250.0 | 96.0 |
+| average latency ms | 30.68 | 177.92 |
 
 ## Compliance
 

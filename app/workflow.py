@@ -863,9 +863,15 @@ def _evidence_sufficiency(context: ContextBundle, plan: QueryPlan, settings: Set
     missing_equipment = sorted(set(plan.equipment_ids) - present_equipment)
     if missing_equipment:
         reasons.append(f"equipment evidence is missing: {', '.join(missing_equipment)}")
-    disallowed = [status for status in (_approval_status(chunk) for chunk in chunks) if status and status not in APPROVED_EVIDENCE]
-    if disallowed:
-        reasons.append(f"non-current revisions found: {', '.join(sorted(set(disallowed)))}")
+    # Refuse only when NO current evidence is present. The previous rule failed
+    # the whole context if *any* selected chunk was non-approved, and
+    # _approval_status falls back to rfi_status, so a single open RFI retrieved
+    # alongside an approved specification blocked an otherwise supported answer.
+    # Chunks with no status at all are treated as usable, matching prior behaviour.
+    statuses = [_approval_status(chunk) for chunk in chunks]
+    disallowed = sorted({status for status in statuses if status and status not in APPROVED_EVIDENCE})
+    if chunks and not any(not status or status in APPROVED_EVIDENCE for status in statuses):
+        reasons.append(f"no current-revision evidence: only {', '.join(disallowed)} found")
     if plan.revision_status and not any(_approval_status(chunk) == plan.revision_status.lower() for chunk in chunks):
         reasons.append(f"required revision status is missing: {plan.revision_status}")
     if _requires_value(context.query) and not re.search(r"\b\d+(?:\.\d+)?\b", " ".join(chunk.text for chunk in chunks)):

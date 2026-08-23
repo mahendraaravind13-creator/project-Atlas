@@ -49,15 +49,15 @@
   "development_tuning": [
     {
       "metrics": {
-        "average_input_tokens": 213.5,
-        "average_latency_ms": 115.23,
-        "average_output_tokens": 86.25,
+        "average_input_tokens": 234.75,
+        "average_latency_ms": 70.68,
+        "average_output_tokens": 138.5,
         "citation_completeness": 0.2,
-        "citation_precision": 0.1667,
-        "correct_document_rate": 0.3333,
+        "citation_precision": 0.1111,
+        "correct_document_rate": 0.6667,
         "correct_page_rate": 0.3333,
-        "corrective_retry_rate": 0.5,
-        "insufficient_evidence_accuracy": 0.5,
+        "corrective_retry_rate": 0.0,
+        "insufficient_evidence_accuracy": 0.75,
         "mrr": 0.5,
         "recall_at_12": 0.5,
         "recall_at_5": 0.5,
@@ -68,15 +68,15 @@
     },
     {
       "metrics": {
-        "average_input_tokens": 215.75,
-        "average_latency_ms": 116.26,
-        "average_output_tokens": 86.25,
+        "average_input_tokens": 224.75,
+        "average_latency_ms": 65.73,
+        "average_output_tokens": 138.5,
         "citation_completeness": 0.2,
-        "citation_precision": 0.1667,
-        "correct_document_rate": 0.3333,
+        "citation_precision": 0.1111,
+        "correct_document_rate": 0.6667,
         "correct_page_rate": 0.3333,
-        "corrective_retry_rate": 0.5,
-        "insufficient_evidence_accuracy": 0.5,
+        "corrective_retry_rate": 0.0,
+        "insufficient_evidence_accuracy": 0.75,
         "mrr": 0.5,
         "recall_at_12": 0.5,
         "recall_at_5": 0.5,
@@ -87,15 +87,15 @@
     },
     {
       "metrics": {
-        "average_input_tokens": 215.75,
-        "average_latency_ms": 113.07,
-        "average_output_tokens": 86.25,
+        "average_input_tokens": 232.0,
+        "average_latency_ms": 66.37,
+        "average_output_tokens": 138.5,
         "citation_completeness": 0.2,
-        "citation_precision": 0.1667,
-        "correct_document_rate": 0.3333,
+        "citation_precision": 0.1111,
+        "correct_document_rate": 0.6667,
         "correct_page_rate": 0.3333,
-        "corrective_retry_rate": 0.5,
-        "insufficient_evidence_accuracy": 0.5,
+        "corrective_retry_rate": 0.0,
+        "insufficient_evidence_accuracy": 0.75,
         "mrr": 0.5,
         "recall_at_12": 0.5,
         "recall_at_5": 0.5,
@@ -106,15 +106,15 @@
     },
     {
       "metrics": {
-        "average_input_tokens": 213.5,
-        "average_latency_ms": 113.85,
-        "average_output_tokens": 86.25,
+        "average_input_tokens": 224.75,
+        "average_latency_ms": 67.39,
+        "average_output_tokens": 138.5,
         "citation_completeness": 0.2,
-        "citation_precision": 0.1667,
-        "correct_document_rate": 0.3333,
+        "citation_precision": 0.1111,
+        "correct_document_rate": 0.6667,
         "correct_page_rate": 0.3333,
-        "corrective_retry_rate": 0.5,
-        "insufficient_evidence_accuracy": 0.5,
+        "corrective_retry_rate": 0.0,
+        "insufficient_evidence_accuracy": 0.75,
         "mrr": 0.5,
         "recall_at_12": 0.5,
         "recall_at_5": 0.5,
@@ -125,15 +125,15 @@
     },
     {
       "metrics": {
-        "average_input_tokens": 215.75,
-        "average_latency_ms": 121.36,
-        "average_output_tokens": 86.25,
+        "average_input_tokens": 232.0,
+        "average_latency_ms": 71.56,
+        "average_output_tokens": 138.5,
         "citation_completeness": 0.2,
-        "citation_precision": 0.1667,
-        "correct_document_rate": 0.3333,
+        "citation_precision": 0.1111,
+        "correct_document_rate": 0.6667,
         "correct_page_rate": 0.3333,
-        "corrective_retry_rate": 0.5,
-        "insufficient_evidence_accuracy": 0.5,
+        "corrective_retry_rate": 0.0,
+        "insufficient_evidence_accuracy": 0.75,
         "mrr": 0.5,
         "recall_at_12": 0.5,
         "recall_at_5": 0.5,
@@ -147,15 +147,15 @@
     },
     {
       "metrics": {
-        "average_input_tokens": 236.5,
-        "average_latency_ms": 114.84,
-        "average_output_tokens": 30.5,
-        "citation_completeness": 0.0,
-        "citation_precision": 0.0,
-        "correct_document_rate": 0.0,
-        "correct_page_rate": 0.0,
-        "corrective_retry_rate": 0.5,
-        "insufficient_evidence_accuracy": 0.25,
+        "average_input_tokens": 249.25,
+        "average_latency_ms": 72.4,
+        "average_output_tokens": 134.5,
+        "citation_completeness": 0.2,
+        "citation_precision": 0.1111,
+        "correct_document_rate": 0.3333,
+        "correct_page_rate": 0.3333,
+        "corrective_retry_rate": 0.0,
+        "insufficient_evidence_accuracy": 0.75,
         "mrr": 0.5,
         "recall_at_12": 0.5,
         "recall_at_5": 0.5,
@@ -169,15 +169,15 @@
     },
     {
       "metrics": {
-        "average_input_tokens": 215.75,
-        "average_latency_ms": 109.95,
-        "average_output_tokens": 86.25,
+        "average_input_tokens": 187.25,
+        "average_latency_ms": 66.7,
+        "average_output_tokens": 115.0,
         "citation_completeness": 0.2,
-        "citation_precision": 0.1667,
-        "correct_document_rate": 0.3333,
+        "citation_precision": 0.125,
+        "correct_document_rate": 0.6667,
         "correct_page_rate": 0.3333,
-        "corrective_retry_rate": 0.5,
-        "insufficient_evidence_accuracy": 0.5,
+        "corrective_retry_rate": 0.0,
+        "insufficient_evidence_accuracy": 0.75,
         "mrr": 0.5,
         "recall_at_12": 0.5,
         "recall_at_5": 0.5,
@@ -191,15 +191,15 @@
     },
     {
       "metrics": {
-        "average_input_tokens": 155.25,
-        "average_latency_ms": 78.84,
-        "average_output_tokens": 86.25,
+        "average_input_tokens": 163.5,
+        "average_latency_ms": 64.29,
+        "average_output_tokens": 115.0,
         "citation_completeness": 0.2,
-        "citation_precision": 0.1667,
-        "correct_document_rate": 0.3333,
+        "citation_precision": 0.125,
+        "correct_document_rate": 0.6667,
         "correct_page_rate": 0.3333,
-        "corrective_retry_rate": 0.25,
-        "insufficient_evidence_accuracy": 0.5,
+        "corrective_retry_rate": 0.0,
+        "insufficient_evidence_accuracy": 0.75,
         "mrr": 0.5,
         "recall_at_12": 0.5,
         "recall_at_5": 0.5,
@@ -210,15 +210,15 @@
     },
     {
       "metrics": {
-        "average_input_tokens": 215.75,
-        "average_latency_ms": 109.27,
-        "average_output_tokens": 86.25,
+        "average_input_tokens": 187.25,
+        "average_latency_ms": 67.4,
+        "average_output_tokens": 115.0,
         "citation_completeness": 0.2,
-        "citation_precision": 0.1667,
-        "correct_document_rate": 0.3333,
+        "citation_precision": 0.125,
+        "correct_document_rate": 0.6667,
         "correct_page_rate": 0.3333,
-        "corrective_retry_rate": 0.5,
-        "insufficient_evidence_accuracy": 0.5,
+        "corrective_retry_rate": 0.0,
+        "insufficient_evidence_accuracy": 0.75,
         "mrr": 0.5,
         "recall_at_12": 0.5,
         "recall_at_5": 0.5,
@@ -229,15 +229,15 @@
     },
     {
       "metrics": {
-        "average_input_tokens": 148.0,
-        "average_latency_ms": 80.24,
-        "average_output_tokens": 86.25,
+        "average_input_tokens": 138.0,
+        "average_latency_ms": 57.99,
+        "average_output_tokens": 115.0,
         "citation_completeness": 0.2,
-        "citation_precision": 0.1667,
-        "correct_document_rate": 0.3333,
+        "citation_precision": 0.125,
+        "correct_document_rate": 0.6667,
         "correct_page_rate": 0.3333,
-        "corrective_retry_rate": 0.25,
-        "insufficient_evidence_accuracy": 0.5,
+        "corrective_retry_rate": 0.0,
+        "insufficient_evidence_accuracy": 0.75,
         "mrr": 0.5,
         "recall_at_12": 0.5,
         "recall_at_5": 0.5,
@@ -248,15 +248,15 @@
     },
     {
       "metrics": {
-        "average_input_tokens": 155.25,
-        "average_latency_ms": 82.1,
-        "average_output_tokens": 86.25,
+        "average_input_tokens": 163.5,
+        "average_latency_ms": 61.93,
+        "average_output_tokens": 115.0,
         "citation_completeness": 0.2,
-        "citation_precision": 0.1667,
-        "correct_document_rate": 0.3333,
+        "citation_precision": 0.125,
+        "correct_document_rate": 0.6667,
         "correct_page_rate": 0.3333,
-        "corrective_retry_rate": 0.25,
-        "insufficient_evidence_accuracy": 0.5,
+        "corrective_retry_rate": 0.0,
+        "insufficient_evidence_accuracy": 0.75,
         "mrr": 0.5,
         "recall_at_12": 0.5,
         "recall_at_5": 0.5,
@@ -267,15 +267,15 @@
     },
     {
       "metrics": {
-        "average_input_tokens": 185.75,
-        "average_latency_ms": 92.63,
-        "average_output_tokens": 96.0,
-        "citation_completeness": 0.2,
-        "citation_precision": 0.1667,
-        "correct_document_rate": 0.3333,
-        "correct_page_rate": 0.3333,
-        "corrective_retry_rate": 0.25,
-        "insufficient_evidence_accuracy": 0.5,
+        "average_input_tokens": 180.0,
+        "average_latency_ms": 69.22,
+        "average_output_tokens": 130.5,
+        "citation_completeness": 0.4,
+        "citation_precision": 0.2222,
+        "correct_document_rate": 0.6667,
+        "correct_page_rate": 0.6667,
+        "corrective_retry_rate": 0.0,
+        "insufficient_evidence_accuracy": 0.75,
         "mrr": 0.5,
         "recall_at_12": 0.5,
         "recall_at_5": 0.5,
@@ -286,15 +286,15 @@
     },
     {
       "metrics": {
-        "average_input_tokens": 148.0,
-        "average_latency_ms": 77.16,
-        "average_output_tokens": 86.25,
+        "average_input_tokens": 138.0,
+        "average_latency_ms": 60.76,
+        "average_output_tokens": 115.0,
         "citation_completeness": 0.2,
-        "citation_precision": 0.1667,
-        "correct_document_rate": 0.3333,
+        "citation_precision": 0.125,
+        "correct_document_rate": 0.6667,
         "correct_page_rate": 0.3333,
-        "corrective_retry_rate": 0.25,
-        "insufficient_evidence_accuracy": 0.5,
+        "corrective_retry_rate": 0.0,
+        "insufficient_evidence_accuracy": 0.75,
         "mrr": 0.5,
         "recall_at_12": 0.5,
         "recall_at_5": 0.5,
@@ -305,8 +305,8 @@
     },
     {
       "metrics": {
-        "average_input_tokens": 123.25,
-        "average_latency_ms": 89.09,
+        "average_input_tokens": 113.25,
+        "average_latency_ms": 80.08,
         "average_output_tokens": 70.5,
         "citation_completeness": 0.2,
         "citation_precision": 0.25,
@@ -341,9 +341,9 @@
   "selected_parameters": {
     "bm25_retrieval_limit": 10,
     "context_max_chunks": 5,
-    "dense_retrieval_limit": 10,
+    "dense_retrieval_limit": 20,
     "rerank_candidate_limit": 8,
-    "reranker_score_threshold": 0.3,
+    "reranker_score_threshold": 0.0,
     "rrf_bm25_weight": 1.0,
     "rrf_dense_weight": 1.5
   },
@@ -351,12 +351,12 @@
     "advanced": {
       "cases": [
         {
-          "citation_count": 0,
-          "claim_count": 0,
-          "correct_citations": 0,
-          "correct_document": false,
-          "correct_page": false,
-          "covered_references": 0,
+          "citation_count": 3,
+          "claim_count": 3,
+          "correct_citations": 2,
+          "correct_document": true,
+          "correct_page": true,
+          "covered_references": 2,
           "expected": [
             [
               "MM-014_delivery_risk_review.md",
@@ -367,11 +367,11 @@
               1
             ]
           ],
-          "input_tokens": 40,
-          "insufficient_correct": false,
-          "latency_ms": 146.80129999760538,
+          "input_tokens": 80,
+          "insufficient_correct": true,
+          "latency_ms": 117.72599999676459,
           "mrr": 1.0,
-          "output_tokens": 10,
+          "output_tokens": 77,
           "question": "What is the active schedule risk and what is its downstream impact?",
           "recall_at_12": 1.0,
           "recall_at_5": 1.0,
@@ -397,23 +397,7 @@
               1
             ],
             [
-              "atlas_demo_schedule.csv",
-              1
-            ],
-            [
-              "atlas_demo_schedule.csv",
-              1
-            ],
-            [
-              "atlas_demo_schedule.csv",
-              1
-            ],
-            [
-              "atlas_demo_schedule.csv",
-              1
-            ],
-            [
-              "atlas_demo_schedule.csv",
+              "MM-014_delivery_risk_review.md",
               1
             ],
             [
@@ -421,7 +405,23 @@
               1
             ],
             [
-              "UPS_Procedure_Template.md",
+              "MM-014_delivery_risk_review.md",
+              1
+            ],
+            [
+              "atlas_demo_schedule.csv",
+              1
+            ],
+            [
+              "atlas_demo_schedule.csv",
+              1
+            ],
+            [
+              "atlas_demo_schedule.csv",
+              1
+            ],
+            [
+              "atlas_demo_schedule.csv",
               1
             ],
             [
@@ -441,10 +441,6 @@
               1
             ],
             [
-              "MM-014_delivery_risk_review.md",
-              1
-            ],
-            [
               "CO-001_switchgear_recovery.md",
               1
             ],
@@ -455,30 +451,34 @@
             [
               "Switchgear_Specification.md",
               1
+            ],
+            [
+              "RFI-003_UPS_bypass_clearance.md",
+              1
             ]
           ],
-          "retry_count": 1,
-          "status": "INSUFFICIENT_EVIDENCE",
+          "retry_count": 0,
+          "status": "ANSWERED",
           "unsupported_claims": 0
         },
         {
-          "citation_count": 0,
-          "claim_count": 0,
-          "correct_citations": 0,
-          "correct_document": false,
-          "correct_page": false,
-          "covered_references": 0,
+          "citation_count": 3,
+          "claim_count": 3,
+          "correct_citations": 2,
+          "correct_document": true,
+          "correct_page": true,
+          "covered_references": 1,
           "expected": [
             [
               "CO-001_switchgear_recovery.md",
               1
             ]
           ],
-          "input_tokens": 300,
-          "insufficient_correct": false,
-          "latency_ms": 165.32820000429638,
+          "input_tokens": 272,
+          "insufficient_correct": true,
+          "latency_ms": 73.44190000731032,
           "mrr": 1.0,
-          "output_tokens": 10,
+          "output_tokens": 167,
           "question": "Is a switchgear delivery recovery measure approved?",
           "recall_at_12": 1.0,
           "recall_at_5": 1.0,
@@ -516,6 +516,10 @@
               1
             ],
             [
+              "MM-014_delivery_risk_review.md",
+              1
+            ],
+            [
               "UPS_Specification.md",
               1
             ],
@@ -524,39 +528,27 @@
               1
             ],
             [
-              "MM-014_delivery_risk_review.md",
-              1
-            ],
-            [
-              "UPS_Procedure_Template.md",
-              1
-            ],
-            [
-              "Switchgear_Specification.md",
-              3
-            ],
-            [
-              "Switchgear_Procedure_Template.md",
+              "atlas_demo_schedule.csv",
               1
             ]
           ],
-          "retry_count": 1,
-          "status": "INSUFFICIENT_EVIDENCE",
+          "retry_count": 0,
+          "status": "ANSWERED",
           "unsupported_claims": 0
         },
         {
-          "citation_count": 0,
-          "claim_count": 0,
+          "citation_count": 3,
+          "claim_count": 3,
           "correct_citations": 0,
           "correct_document": false,
           "correct_page": false,
           "covered_references": 0,
           "expected": [],
-          "input_tokens": 26,
-          "insufficient_correct": true,
-          "latency_ms": 102.32449999602977,
+          "input_tokens": 40,
+          "insufficient_correct": false,
+          "latency_ms": 64.17369999689981,
           "mrr": 0,
-          "output_tokens": 10,
+          "output_tokens": 44,
           "question": "What is the generator fuel polishing interval?",
           "recall_at_12": 0,
           "recall_at_5": 0,
@@ -600,23 +592,31 @@
             [
               "atlas_demo_schedule.csv",
               1
+            ],
+            [
+              "atlas_demo_schedule.csv",
+              1
+            ],
+            [
+              "atlas_demo_schedule.csv",
+              1
             ]
           ],
-          "retry_count": 1,
-          "status": "INSUFFICIENT_EVIDENCE",
+          "retry_count": 0,
+          "status": "ANSWERED",
           "unsupported_claims": 0
         }
       ],
       "metrics": {
-        "average_input_tokens": 122.0,
-        "average_latency_ms": 138.15,
-        "average_output_tokens": 10.0,
-        "citation_completeness": 0.0,
-        "citation_precision": 0.0,
-        "correct_document_rate": 0.0,
-        "correct_page_rate": 0.0,
-        "corrective_retry_rate": 1.0,
-        "insufficient_evidence_accuracy": 0.3333,
+        "average_input_tokens": 130.67,
+        "average_latency_ms": 85.11,
+        "average_output_tokens": 96.0,
+        "citation_completeness": 1.0,
+        "citation_precision": 0.6667,
+        "correct_document_rate": 1.0,
+        "correct_page_rate": 1.0,
+        "corrective_retry_rate": 0.0,
+        "insufficient_evidence_accuracy": 0.6667,
         "mrr": 1.0,
         "recall_at_12": 1.0,
         "recall_at_5": 1.0,
@@ -644,7 +644,7 @@
           ],
           "input_tokens": 474,
           "insufficient_correct": true,
-          "latency_ms": 25.777999995625578,
+          "latency_ms": 27.55060000345111,
           "mrr": 1.0,
           "output_tokens": 276,
           "question": "What is the active schedule risk and what is its downstream impact?",
@@ -691,7 +691,7 @@
           ],
           "input_tokens": 349,
           "insufficient_correct": true,
-          "latency_ms": 22.295600007055327,
+          "latency_ms": 25.105699998675846,
           "mrr": 1.0,
           "output_tokens": 173,
           "question": "Is a switchgear delivery recovery measure approved?",
@@ -733,7 +733,7 @@
           "expected": [],
           "input_tokens": 494,
           "insufficient_correct": false,
-          "latency_ms": 23.661599989281967,
+          "latency_ms": 29.04609999677632,
           "mrr": 0,
           "output_tokens": 301,
           "question": "What is the generator fuel polishing interval?",
@@ -768,7 +768,7 @@
       ],
       "metrics": {
         "average_input_tokens": 439.0,
-        "average_latency_ms": 23.91,
+        "average_latency_ms": 27.23,
         "average_output_tokens": 250.0,
         "citation_completeness": 1.0,
         "citation_precision": 1.0,

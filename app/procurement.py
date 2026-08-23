@@ -1,3 +1,4 @@
+import asyncio
 import csv
 import io
 import json
@@ -223,7 +224,7 @@ async def import_shipment_csv(
         rows = list(csv.DictReader(io.StringIO(content.decode("utf-8-sig"))))
     except UnicodeDecodeError as exc:
         raise IngestionError("invalid_shipment_csv", "Shipment CSV must be UTF-8") from exc
-    if not rows or not REQUIRED_IMPORT_COLUMNS <= set(rows[0]):
+    if not rows or not set(rows[0]) >= REQUIRED_IMPORT_COLUMNS:
         missing = sorted(REQUIRED_IMPORT_COLUMNS - set(rows[0] if rows else []))
         raise IngestionError("invalid_shipment_csv", f"Shipment CSV is empty or missing columns: {', '.join(missing)}")
     if len(rows) > 1_000:
@@ -505,7 +506,8 @@ async def _ensure_delivery_impact(
 async def seed_synthetic_supply_chain(
     session: AsyncSession, project_id: uuid.UUID, source: Path
 ) -> ShipmentListResponse:
-    data = json.loads(source.read_text())
+    # Read off the event loop: this is a synchronous filesystem call.
+    data = json.loads(await asyncio.to_thread(source.read_text, encoding="utf-8"))
     for item in data["shipments"]:
         if not await session.scalar(
             select(Equipment).where(

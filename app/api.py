@@ -76,6 +76,10 @@ from app.workflow import ConversationMessage, CopilotResult, QueryPlanResult, Rf
 
 logger = logging.getLogger("atlas.api")
 
+# Slack for multipart boundaries and the document_type field when comparing a
+# declared Content-Length against the configured upload limit.
+MULTIPART_ENVELOPE_ALLOWANCE = 8 * 1024
+
 router = APIRouter(prefix="/projects", tags=["projects"])
 evaluation_router = APIRouter(prefix="/api/evaluation", tags=["evaluation"])
 mitigation_router = APIRouter(prefix="/api/mitigations", tags=["mitigations"])
@@ -259,9 +263,19 @@ async def upload_document(
     session: AsyncSession = Depends(get_session),
 ) -> UploadResponse:
     await _project_or_404(session, project_id)
+    settings = request.app.state.settings
+    # Reject an over-sized body from its declared length before buffering it.
+    # validate_upload only sees len(content), i.e. after the whole request is
+    # already in memory. MULTIPART_ENVELOPE_ALLOWANCE covers boundary markers and
+    # the document_type part so a file at exactly the limit is not refused.
+    declared = request.headers.get("content-length", "")
+    if declared.isdigit() and int(declared) > settings.max_upload_bytes + MULTIPART_ENVELOPE_ALLOWANCE:
+        raise IngestionError(
+            "invalid_file_size", f"File must be between 1 and {settings.max_upload_bytes} bytes", 413
+        )
     content = await file.read()
     filename = Path(file.filename or "").name
-    validate_upload(filename, document_type, len(content), request.app.state.settings)
+    validate_upload(filename, document_type, len(content), settings)
     content_sha256 = file_hash(content)
     duplicate = await session.scalar(
         select(Document).where(Document.project_id == project_id, Document.content_sha256 == content_sha256)
