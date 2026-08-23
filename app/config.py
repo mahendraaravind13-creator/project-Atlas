@@ -154,6 +154,12 @@ class Settings(BaseSettings):
 
     llm_timeout_seconds: float = Field(default=30.0, gt=0)
 
+    # Attempts against one provider before moving to the next. Free endpoints
+    # return transient 429/503 constantly, so a single attempt each makes a
+    # request fail while every provider is in fact reachable.
+    llm_attempts_per_provider: int = Field(default=3, ge=1, le=5)
+    llm_retry_backoff_seconds: float = Field(default=0.6, ge=0)
+
     @property
     def llm_provider_order(self) -> list[str]:
         return [name.strip().lower() for name in self.llm_providers.split(",") if name.strip()]
@@ -162,26 +168,57 @@ class Settings(BaseSettings):
         """
         Key for one provider, from its documented variable name.
 
-        Reads os.environ directly rather than declaring a field per provider:
-        the registry is data, and a new provider should not require a schema
-        change. Groq keeps its typed field so existing setups keep working.
+        Resolved by name rather than as a declared field per provider, so the
+        registry stays data and adding a provider needs no schema change. Groq
+        keeps its typed field so existing setups are unaffected.
         """
-        import os
-
         if provider.name == "groq" and self.groq_api_key:
             return self.groq_api_key
-        return os.environ.get(provider.key_env) or os.environ.get(f"ATLAS_{provider.key_env}") or None
+        return self._lookup(provider.key_env, f"ATLAS_{provider.key_env}")
 
     def provider_model(self, provider) -> str:
         """Per-provider override, then the global override, then the registry default."""
-        import os
-
         if provider.name == "groq":
             return self.groq_model
-        specific = os.environ.get(f"{provider.name.upper()}_MODEL") or os.environ.get(
-            f"ATLAS_{provider.name.upper()}_MODEL"
-        )
+        upper = provider.name.upper()
+        specific = self._lookup(f"{upper}_MODEL", f"ATLAS_{upper}_MODEL")
         return specific or self.llm_model or provider.default_model
+
+    def _lookup(self, *names: str) -> str | None:
+        """
+        First non-empty value among `names`, from the process environment and
+        then the dotenv file.
+
+        The dotenv fallback is essential, not a convenience: pydantic-settings
+        loads .env into declared fields only, never into os.environ. Reading
+        os.environ alone meant every provider except groq - which has a typed
+        field - silently found no key when it was set in .env, so failover
+        never had anywhere to go.
+        """
+        import os
+
+        for name in names:
+            value = os.environ.get(name)
+            if value and value.strip():
+                return value.strip()
+        for name in names:
+            value = self._dotenv_values().get(name)
+            if value and value.strip():
+                return value.strip()
+        return None
+
+    def _dotenv_values(self) -> dict[str, str]:
+        env_file = self.model_config.get("env_file")
+        if not env_file:
+            return {}
+        from pathlib import Path
+
+        path = Path(env_file)
+        if not path.is_file():
+            return {}
+        from dotenv import dotenv_values
+
+        return {key: value for key, value in dotenv_values(path).items() if value is not None}
 
     rfi_similarity_threshold: float = 0.75
 

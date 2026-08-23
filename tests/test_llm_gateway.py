@@ -51,6 +51,9 @@ def _gateway(*completions: Completions, providers: tuple[str, ...] = ("groq",)) 
         Route(provider=PROVIDERS[providers[index % len(providers)]], model="stub-model", client=_client(item))
         for index, item in enumerate(completions)
     ]
+    # One attempt and no backoff by default: retry behaviour is asserted
+    # explicitly by the tests that care, and real sleeps would slow the suite.
+    gateway.attempts_per_provider, gateway.retry_backoff_seconds = 1, 0
     return gateway
 
 
@@ -114,7 +117,7 @@ async def test_a_rate_limited_provider_rolls_to_the_next_one() -> None:
     gateway = _gateway(exhausted, healthy, providers=("groq", "openrouter"))
 
     assert await gateway.generate("instructions", "content") == "second provider answered"
-    assert len(exhausted.calls) == 1 and len(healthy.calls) == 1
+    assert len(exhausted.calls) == 1 and len(healthy.calls) == 1  # one attempt each here
 
 
 async def test_failover_covers_outages_timeouts_and_bad_credentials() -> None:
@@ -277,3 +280,92 @@ def test_the_default_order_keeps_an_anonymous_fallback_last() -> None:
 
     assert order[-1] == "llm7", "the unauthenticated tier must be the last resort"
     assert len(order) > 1, "a single provider leaves no failover path"
+
+
+# --------------------------------------------------------------------------
+# Key resolution from .env - the bug that made the whole router single-provider
+# --------------------------------------------------------------------------
+
+def test_a_provider_key_set_only_in_dotenv_is_found(tmp_path, monkeypatch) -> None:
+    """
+    pydantic-settings loads .env into declared fields, never into os.environ.
+    Resolving provider keys from os.environ alone meant every provider except
+    groq - the one with a typed field - reported no key when it was set in
+    .env, so a configured fallback silently never existed.
+    """
+    env = tmp_path / ".env"
+    env.write_text("GEMINI_API_KEY=from-dotenv\n", encoding="utf-8")
+    monkeypatch.delenv("GEMINI_API_KEY", raising=False)
+    monkeypatch.setitem(Settings.model_config, "env_file", str(env))
+
+    gateway = LLMGateway(Settings(groq_api_key="", llm_providers="gemini"))
+
+    assert gateway.providers == ["gemini"]
+
+
+def test_the_process_environment_outranks_the_dotenv_file(tmp_path, monkeypatch) -> None:
+    env = tmp_path / ".env"
+    env.write_text("OPENROUTER_MODEL=from-dotenv\n", encoding="utf-8")
+    monkeypatch.setenv("OPENROUTER_API_KEY", "k")
+    monkeypatch.setenv("OPENROUTER_MODEL", "from-environment")
+    monkeypatch.setitem(Settings.model_config, "env_file", str(env))
+
+    gateway = LLMGateway(Settings(llm_providers="openrouter"))
+
+    assert gateway.routes[0].model == "from-environment"
+
+
+# --------------------------------------------------------------------------
+# Transient retry - free endpoints fail intermittently, not permanently
+# --------------------------------------------------------------------------
+
+class FlakyCompletions:
+    """Fails `failures` times with a transient error, then succeeds."""
+
+    def __init__(self, failures: int, error: Exception) -> None:
+        self.remaining, self.error, self.calls = failures, error, 0
+
+    async def create(self, **_kwargs):
+        self.calls += 1
+        if self.remaining > 0:
+            self.remaining -= 1
+            raise self.error
+        return SimpleNamespace(choices=[SimpleNamespace(message=SimpleNamespace(content="recovered"))])
+
+
+async def test_a_transiently_overloaded_provider_is_retried_before_failover() -> None:
+    """
+    Measured on a hosted flash model: only 2 of 4 back-to-back calls answered,
+    the rest "503 model is overloaded". Treating that as fatal made three
+    healthy-but-flaky providers fail a request outright.
+    """
+    flaky = FlakyCompletions(2, _status_error(openai.InternalServerError, 503))
+    gateway = _gateway(Completions(content="unused"))
+    gateway.routes[0].client = _client(flaky)
+    gateway.attempts_per_provider, gateway.retry_backoff_seconds = 3, 0
+
+    assert await gateway.generate("i", "c") == "recovered"
+    assert flaky.calls == 3, "should have retried the same provider twice before succeeding"
+
+
+async def test_retries_are_bounded_then_failover_happens() -> None:
+    exhausted = FlakyCompletions(99, _rate_limited())
+    healthy = Completions(content="next provider")
+    gateway = _gateway(Completions(), Completions(), providers=("groq", "openrouter"))
+    gateway.routes[0].client = _client(exhausted)
+    gateway.routes[1].client = _client(healthy)
+    gateway.attempts_per_provider, gateway.retry_backoff_seconds = 2, 0
+
+    assert await gateway.generate("i", "c") == "next provider"
+    assert exhausted.calls == 2, "must stop at the configured attempt limit"
+
+
+async def test_a_terminal_error_is_not_retried() -> None:
+    """A bad key or retired model fails identically every time."""
+    dead = FlakyCompletions(99, _auth_failure())
+    gateway = _gateway(Completions(), Completions(content="next"), providers=("groq", "openrouter"))
+    gateway.routes[0].client = _client(dead)
+    gateway.attempts_per_provider, gateway.retry_backoff_seconds = 3, 0
+
+    assert await gateway.generate("i", "c") == "next"
+    assert dead.calls == 1, "no point retrying a credential or model-name failure"

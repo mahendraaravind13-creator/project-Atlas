@@ -38,6 +38,8 @@ services:
       # project content to.
       - key: ATLAS_LLM_PROVIDERS
         value: groq,openrouter,gemini
+      - key: ATLAS_LLM_ATTEMPTS_PER_PROVIDER
+        value: "3"
       - key: OPENROUTER_API_KEY
         sync: false
       - key: GEMINI_API_KEY

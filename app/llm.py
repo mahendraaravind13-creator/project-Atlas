@@ -13,6 +13,7 @@ Configure with ATLAS_LLM_PROVIDERS (ordered, comma-separated). A provider is
 skipped unless its API key is present, so listing extras is harmless.
 """
 
+import asyncio
 import logging
 from dataclasses import dataclass
 
@@ -57,7 +58,7 @@ PROVIDERS: dict[str, Provider] = {
         # 2,000 RPD
         Provider("modelscope", "https://api-inference.modelscope.cn/v1", "MODELSCOPE_API_KEY", "Qwen/Qwen2.5-7B-Instruct"),
         # 15 RPM / 1,500 RPD. OpenAI-compatible surface, not the native v1beta path.
-        Provider("gemini", "https://generativelanguage.googleapis.com/v1beta/openai/", "GEMINI_API_KEY", "gemini-2.0-flash"),
+        Provider("gemini", "https://generativelanguage.googleapis.com/v1beta/openai/", "GEMINI_API_KEY", "gemini-flash-latest"),
         # 30 RPM / 1,000 RPD, but a tight daily token cap.
         Provider("groq", "https://api.groq.com/openai/v1", "GROQ_API_KEY", "openai/gpt-oss-120b"),
         # 20 RPM / 50 RPD. Free models carry a ":free" suffix.
@@ -71,17 +72,27 @@ PROVIDERS: dict[str, Provider] = {
     )
 }
 
-# Worth trying the next provider for. Anything else is a request-shaped problem
-# that every provider would reject identically, so failing over just wastes time.
-FAILOVER_ERRORS = (
+# Transient: the same provider may well succeed a moment later, so retry it
+# before moving on. Free tiers return these constantly - a hosted Gemini flash
+# model was measured answering only 2 of 4 back-to-back calls, the rest
+# "503 model is overloaded". Without a retry, three flaky providers in a row
+# leave the request with nowhere to go even though all three are basically up.
+TRANSIENT_ERRORS = (
     openai.RateLimitError,
     openai.APITimeoutError,
     openai.APIConnectionError,
     openai.InternalServerError,
+)
+
+# Terminal for this provider: a bad key or a retired model will fail the same
+# way every time, so move on immediately rather than waiting out a backoff.
+TERMINAL_ERRORS = (
     openai.AuthenticationError,
     openai.PermissionDeniedError,
     openai.NotFoundError,
 )
+
+FAILOVER_ERRORS = TRANSIENT_ERRORS + TERMINAL_ERRORS
 
 
 @dataclass
@@ -102,6 +113,8 @@ class LLMGateway:
     def __init__(self, settings: Settings) -> None:
         self.routes = _build_routes(settings)
         self.model = self.routes[0].model if self.routes else settings.llm_model or ""
+        self.attempts_per_provider = settings.llm_attempts_per_provider
+        self.retry_backoff_seconds = settings.llm_retry_backoff_seconds
 
     @property
     def client(self) -> openai.AsyncOpenAI | None:
@@ -128,17 +141,45 @@ class LLMGateway:
 
         for route in self.routes:
             attempted.append(route.provider.name)
+            message = await self._try_route(route, messages, kwargs)
+            if message is None:
+                continue
+            if route is not self.routes[0]:
+                logger.info("llm_failover_succeeded provider=%s after=%s", route.provider.name, attempted[:-1])
+            return message
+
+        logger.warning("llm_all_providers_exhausted attempted=%s", attempted)
+        raise IngestionError("model_gateway_error", "AI provider request failed", 502)
+
+    async def _try_route(self, route: "Route", messages: list[dict], kwargs: dict) -> str | None:
+        """
+        One provider, retried on transient failures. None means "move on".
+
+        Re-raises only for a request-shaped error, which every provider would
+        reject identically - failing over on those would burn other quotas to
+        reach the same 502.
+        """
+        for attempt in range(1, self.attempts_per_provider + 1):
             try:
                 response = await route.client.chat.completions.create(
                     model=route.model, temperature=0, messages=messages, **kwargs
                 )
-            except FAILOVER_ERRORS as exc:
+            except TRANSIENT_ERRORS as exc:
                 # Log the type only: provider messages can echo the prompt back.
+                logger.warning(
+                    "llm_provider_transient provider=%s model=%s error=%s attempt=%d/%d",
+                    route.provider.name, route.model, type(exc).__name__, attempt, self.attempts_per_provider,
+                )
+                if attempt < self.attempts_per_provider:
+                    await asyncio.sleep(self.retry_backoff_seconds * attempt)
+                    continue
+                return None
+            except TERMINAL_ERRORS as exc:
                 logger.warning(
                     "llm_provider_failed provider=%s model=%s error=%s",
                     route.provider.name, route.model, type(exc).__name__,
                 )
-                continue
+                return None
             except Exception as exc:
                 logger.warning(
                     "llm_request_rejected provider=%s error=%s", route.provider.name, type(exc).__name__
@@ -146,16 +187,11 @@ class LLMGateway:
                 raise IngestionError("model_gateway_error", "AI provider request failed", 502) from exc
 
             message = response.choices[0].message.content if response.choices else None
-            if not message or not message.strip():
-                logger.warning("llm_empty_response provider=%s model=%s", route.provider.name, route.model)
-                continue
-
-            if route is not self.routes[0]:
-                logger.info("llm_failover_succeeded provider=%s after=%s", route.provider.name, attempted[:-1])
-            return message.strip()
-
-        logger.warning("llm_all_providers_exhausted attempted=%s", attempted)
-        raise IngestionError("model_gateway_error", "AI provider request failed", 502)
+            if message and message.strip():
+                return message.strip()
+            logger.warning("llm_empty_response provider=%s model=%s", route.provider.name, route.model)
+            return None
+        return None
 
 
 def _build_routes(settings: Settings) -> list[Route]:
