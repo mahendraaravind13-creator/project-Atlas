@@ -3,8 +3,15 @@
 import { FormEvent, useEffect, useState } from "react";
 
 import { ApiError, api, isAuthDisabled, type AuthUser, type Citation, type CopilotResult, type ComplianceFinding, type DigitalThread, type Document, type EvaluationRun, type ExecutiveSummary, type ImpactChain, type MitigationSelection, type MitigationSimulation, type Procedure, type Project, type ShipmentList, type SupplyAssessment, type TestRecord } from "../lib/api";
-import { Badge, Button, Card, Input, Select, Textarea } from "./ui";
+import { Badge, Button, Card, EmptyState, Input, Notice, PanelTitle, Select, SkeletonCard, Textarea } from "./ui";
+// ImpactChain is aliased: the API response type of the same name is already
+// imported from lib/api, and the diagram is a different thing from the record
+// it renders.
+import { ImpactChain as ImpactChainDiagram, Meter, StatTile, TableView, type ChainStage } from "./viz";
+import { Reveal } from "./motion";
+import { cn } from "../lib/utils";
 import { Login } from "./login";
+import { StoryChain, StoryClose, StoryGuardrails, StoryHero } from "./story";
 import { onTokenChange } from "../lib/token";
 
 type View = "overview" | "knowledge" | "thread" | "compliance" | "impact" | "mitigations" | "readiness" | "supply" | "evidence" | "evaluation" | "documents";
@@ -74,6 +81,8 @@ export function Dashboard() {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [checking, setChecking] = useState(true);
   const [signedOutReason, setSignedOutReason] = useState<string | null>(null);
+  // Which unauthenticated view to show. Starts on the story.
+  const [gate, setGate] = useState<"story" | "login">("story");
 
   // The fetch lives at module scope and returns a result rather than setting
   // state, so the effect below assigns state inline. react-hooks/set-state-in-effect
@@ -95,21 +104,54 @@ export function Dashboard() {
   useEffect(() => onTokenChange((token) => {
     if (token === null && user && !isAuthDisabled(user)) {
       setUser(null);
+      setGate("login");
       setSignedOutReason("Your session expired. Sign in again to continue.");
     }
   }), [user]);
 
   if (checking) {
+    // A branded hold rather than a bare sentence: this is the first frame a
+    // reader sees, and an unstyled line of text reads as a broken page.
     return <main className="mesh flex min-h-screen items-center justify-center bg-canvas">
-      <p className="text-sm text-muted">Connecting to Project Atlas…</p>
+      <div className="text-center">
+        <span aria-hidden="true" className="relative mx-auto flex h-2.5 w-2.5">
+          <span className="absolute inset-0 animate-pulse-ring rounded-full bg-signal" />
+          <span className="relative h-2.5 w-2.5 rounded-full bg-signal" />
+        </span>
+        <p className="mt-4 font-mono text-label uppercase tracking-wider text-muted">Connecting to Project Atlas</p>
+      </div>
     </main>;
   }
 
-  if (!user) return <Login onSignedIn={reidentify} reason={signedOutReason} />;
+  if (!user) {
+    // Unauthenticated visitors land on the story, not on a password box. The
+    // narrative is public on purpose: it is how a first-time reader - a judge
+    // opening a link, say - learns what the chain is before being asked for
+    // credentials they may not have. Sign-in is one deliberate click away.
+    if (gate === "story") {
+      return <main className="view-enter min-h-screen bg-canvas">
+        <StoryHero onEnter={() => setGate("login")} />
+        <StoryChain />
+        <StoryGuardrails />
+        <StoryClose onEnter={() => setGate("login")} />
+        <footer className="border-t border-hairline bg-white">
+          <div className="mx-auto flex max-w-shell flex-wrap items-center justify-between gap-3 px-6 py-6">
+            <p className="text-xs leading-5 text-muted">
+              Synthetic demonstration data. Figures are planted so the chain can be verified, and are not a production forecast.
+            </p>
+            <Button variant="secondary" size="sm" onClick={() => setGate("login")}>Sign in</Button>
+          </div>
+        </footer>
+      </main>;
+    }
+    return <div className="view-enter">
+      <Login onSignedIn={reidentify} reason={signedOutReason} onBack={() => setGate("story")} />
+    </div>;
+  }
 
   return <SignedInDashboard
     user={user}
-    onSignOut={isAuthDisabled(user) ? null : () => { api.logout(); setUser(null); setSignedOutReason(null); }}
+    onSignOut={isAuthDisabled(user) ? null : () => { api.logout(); setUser(null); setGate("story"); setSignedOutReason(null); }}
   />;
 }
 
@@ -125,6 +167,9 @@ export function SignedInDashboard({ user, onSignOut }: { user: AuthUser; onSignO
   const [notice, setNotice] = useState<Notice>(null);
   const [resetKey, setResetKey] = useState(0);
   const [resetting, setResetting] = useState(false);
+  // The sidebar becomes an overlay below lg. Held here rather than in the aside
+  // so selecting a destination can close it.
+  const [navOpen, setNavOpen] = useState(false);
 
   const refreshProjects = async () => {
     const items = await api.projects(); setProjects(items); setProjectId((current) => current || items[0]?.id || "");
@@ -141,11 +186,187 @@ export function SignedInDashboard({ user, onSignOut }: { user: AuthUser; onSignO
   const activeProject = projects.find((project) => project.id === projectId);
   const props = { projectId, documents, refreshDocuments, setNotice };
 
-  return <main className="min-h-screen bg-canvas mesh">
-    <header className="sticky top-0 z-30 border-b border-navy-hi/60 bg-navy text-white shadow-card"><div className="mx-auto flex max-w-[1600px] flex-wrap items-center justify-between gap-x-5 gap-y-2 px-6 py-2.5 lg:flex-nowrap"><div className="flex min-w-0 items-baseline gap-2.5"><h1 className="text-base font-semibold tracking-tight">Project Atlas</h1><p className="hidden truncate font-mono text-label uppercase text-sky-300/80 xl:block">EPC project intelligence</p></div><div className="flex min-w-0 items-center gap-2"><SyntheticBadge /><Badge tone={health && Object.values(health).every((value) => value === "ok") ? "green" : "amber"}>{health ? "API connected" : "Checking API"}</Badge><Select className="h-8 w-48 min-w-0 shrink" value={projectId} onChange={(event) => setProjectId(event.target.value)}><option value="">Select a project</option>{projects.map((project) => <option value={project.id} key={project.id}>{project.name}</option>)}</Select>{onSignOut ? <span className="hidden max-w-[14rem] truncate font-mono text-label text-sky-300/80 xl:inline" title={user.email}>{user.email}</span> : null}<Button variant="secondary" onClick={() => { if (window.confirm("Sign out of Project Atlas?")) onSignOut!(); }} className={onSignOut ? undefined : "hidden"}>Sign out</Button><Button variant="secondary" disabled={!projectId || resetting} onClick={async () => { if (!window.confirm("Reset this project's synthetic supply-chain scenario and clear the current demo view? Project documents are preserved.")) return; setResetting(true); try { await api.resetDemo(projectId); await api.seedVerticalScenario(projectId); setResetKey((value) => value + 1); setNotice({ kind: "success", text: "Seeded switchgear scenario restored; project documents were preserved." }); } catch (error) { setNotice({ kind: "error", text: errorText(error) }); } finally { setResetting(false); } }}>{resetting ? "Resetting…" : "Reset Demo"}</Button></div></div></header>
-    <div className="mx-auto grid max-w-[1600px] gap-5 px-6 pb-8 pt-5 lg:grid-cols-[220px_minmax(0,1fr)]">
-      <aside className="h-fit rounded-xl border border-slate-200/90 bg-white p-2.5 shadow-card lg:sticky lg:top-[4.25rem]"><p className="px-2 pb-2 font-mono text-label uppercase text-slate-400">Workspace</p><nav className="space-y-0.5">{views.map(([key, label]) => <button key={key} onClick={() => setView(key)} aria-current={view === key ? "page" : undefined} className={`flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm font-medium transition ${view === key ? "bg-navy text-white shadow-card" : "text-slate-600 hover:bg-slate-100 hover:text-ink"}`}><span className={`h-1.5 w-1.5 shrink-0 rounded-full ${view === key ? "bg-signal" : "bg-transparent"}`} />{label}</button>)}</nav><p className="mt-4 border-t border-slate-100 px-2 pt-3 text-xs leading-5 text-muted">AI outputs are evidence-led suggestions. Reviewer decisions and commissioning records are explicitly marked.</p></aside>
-      <section className="min-w-0"><NoticeBox notice={notice} />{loading ? <Card><p className="animate-pulse text-sm text-slate-500">Loading project workspace…</p></Card> : view === "overview" ? <Overview project={activeProject} documents={documents} health={health} onCreate={async (name) => { try { const project = await api.createProject(name); await refreshProjects(); setProjectId(project.id); setNotice({ kind: "success", text: `Created ${project.name}.` }); } catch (error) { setNotice({ kind: "error", text: errorText(error) }); } }} /> : !projectId ? <Empty>Select or create a project to use this workspace.</Empty> : <Workspace key={`${projectId}-${resetKey}-${view}`} view={view} {...props} />}</section>
+  const healthy = health && Object.values(health).every((value) => value === "ok");
+
+  const nav = (
+    <nav className="space-y-0.5">
+      {views.map(([key, label]) => (
+        <button
+          key={key}
+          onClick={() => { setView(key); setNavOpen(false); }}
+          aria-current={view === key ? "page" : undefined}
+          className={cn(
+            "group flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-left text-sm font-medium transition-crisp ease-swap",
+            view === key
+              ? "bg-navy text-white shadow-card"
+              : "text-slate-600 hover:bg-slate-100 hover:text-ink",
+          )}
+        >
+          <span
+            aria-hidden="true"
+            className={cn(
+              "h-1.5 w-1.5 shrink-0 rounded-full transition-crisp",
+              view === key ? "bg-signal" : "bg-slate-300 group-hover:bg-slate-400",
+            )}
+          />
+          <span className="min-w-0 truncate">{label}</span>
+        </button>
+      ))}
+    </nav>
+  );
+
+  return <main className="mesh min-h-screen bg-canvas">
+    <header className="sticky top-0 z-30 border-b border-navy-hi/60 bg-navy/95 text-white shadow-card backdrop-blur">
+      <div className="mx-auto flex max-w-shell items-center justify-between gap-3 px-4 py-2.5 sm:px-6">
+        <div className="flex min-w-0 items-center gap-3">
+          {/* Below lg the sidebar is an overlay, so it needs a trigger. */}
+          <button
+            type="button"
+            onClick={() => setNavOpen(true)}
+            aria-label="Open workspace navigation"
+            aria-expanded={navOpen}
+            className="grid h-8 w-8 shrink-0 place-items-center rounded-md ring-1 ring-inset ring-white/20 transition-crisp hover:bg-white/10 lg:hidden"
+          >
+            <span aria-hidden="true" className="space-y-1">
+              <span className="block h-0.5 w-4 bg-white" />
+              <span className="block h-0.5 w-4 bg-white" />
+              <span className="block h-0.5 w-4 bg-white" />
+            </span>
+          </button>
+          <div className="flex min-w-0 items-baseline gap-2.5">
+            <h1 className="truncate text-base font-semibold tracking-tight">Project Atlas</h1>
+            <p className="hidden truncate font-mono text-label uppercase text-sky-300/80 xl:block">
+              EPC project intelligence
+            </p>
+          </div>
+        </div>
+
+        <div className="flex min-w-0 items-center gap-2">
+          <span className="hidden sm:inline"><SyntheticBadge /></span>
+          <span
+            className="hidden items-center gap-1.5 rounded-full bg-white/10 px-2.5 py-1 font-mono text-label uppercase text-sky-100 ring-1 ring-inset ring-white/15 sm:inline-flex"
+            title={health ? Object.entries(health).map(([k, v]) => `${k}: ${v}`).join(" · ") : "Checking API"}
+          >
+            <span aria-hidden="true" className={cn("h-1.5 w-1.5 rounded-full", healthy ? "bg-status-good" : health ? "bg-status-warning" : "bg-slate-400")} />
+            {health ? (healthy ? "API connected" : "API degraded") : "Checking API"}
+          </span>
+
+          <Select
+            className="h-8 w-36 min-w-0 shrink sm:w-48"
+            aria-label="Active project"
+            value={projectId}
+            onChange={(event) => setProjectId(event.target.value)}
+          >
+            <option value="">Select a project</option>
+            {projects.map((project) => <option value={project.id} key={project.id}>{project.name}</option>)}
+          </Select>
+
+          {onSignOut ? (
+            <span className="hidden max-w-[14rem] truncate font-mono text-label text-sky-300/80 xl:inline" title={user.email}>
+              {user.email}
+            </span>
+          ) : null}
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => { if (window.confirm("Sign out of Project Atlas?")) onSignOut!(); }}
+            className={onSignOut ? undefined : "hidden"}
+          >
+            Sign out
+          </Button>
+          <Button
+            variant="secondary"
+            size="sm"
+            disabled={!projectId || resetting}
+            loading={resetting}
+            onClick={async () => {
+              if (!window.confirm("Reset this project's synthetic supply-chain scenario and clear the current demo view? Project documents are preserved.")) return;
+              setResetting(true);
+              try {
+                await api.resetDemo(projectId);
+                await api.seedVerticalScenario(projectId);
+                setResetKey((value) => value + 1);
+                setNotice({ kind: "success", text: "Seeded switchgear scenario restored; project documents were preserved." });
+              } catch (error) {
+                setNotice({ kind: "error", text: errorText(error) });
+              } finally {
+                setResetting(false);
+              }
+            }}
+          >
+            {resetting ? "Resetting" : "Reset Demo"}
+          </Button>
+        </div>
+      </div>
+    </header>
+
+    {/* Mobile navigation overlay. Rendered only while open so it cannot trap
+        focus or intercept taps when closed. */}
+    {navOpen ? (
+      <div className="fixed inset-0 z-40 lg:hidden">
+        <button
+          type="button"
+          aria-label="Close navigation"
+          onClick={() => setNavOpen(false)}
+          className="absolute inset-0 h-full w-full cursor-default bg-slate-950/40 animate-fade-in"
+        />
+        <aside className="scroll-y absolute inset-y-0 left-0 w-72 max-w-[85vw] animate-slide-in-right bg-white p-3 shadow-drawer">
+          <div className="mb-3 flex items-center justify-between">
+            <p className="font-mono text-label uppercase text-slate-400">Workspace</p>
+            <Button variant="ghost" size="sm" onClick={() => setNavOpen(false)}>Close</Button>
+          </div>
+          {nav}
+        </aside>
+      </div>
+    ) : null}
+
+    <div className="mx-auto grid max-w-shell gap-5 px-4 pb-10 pt-5 sm:px-6 lg:grid-cols-[220px_minmax(0,1fr)]">
+      <aside className="hidden h-fit rounded-xl border border-slate-200/90 bg-white p-2.5 shadow-card lg:sticky lg:top-[4.25rem] lg:block">
+        <p className="px-2 pb-2 font-mono text-label uppercase text-slate-400">Workspace</p>
+        {nav}
+        <p className="mt-4 border-t border-slate-100 px-2 pt-3 text-xs leading-5 text-muted">
+          AI outputs are evidence-led suggestions. Reviewer decisions and commissioning records are
+          explicitly marked.
+        </p>
+      </aside>
+
+      <section className="min-w-0">
+        <NoticeBox notice={notice} />
+        {loading ? (
+          <div className="space-y-4">
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+              {[0, 1, 2, 3].map((index) => <SkeletonCard key={index} rows={1} />)}
+            </div>
+            <SkeletonCard rows={4} />
+          </div>
+        ) : view === "overview" ? (
+          <Overview
+            project={activeProject}
+            documents={documents}
+            health={health}
+            onCreate={async (name) => {
+              try {
+                const project = await api.createProject(name);
+                await refreshProjects();
+                setProjectId(project.id);
+                setNotice({ kind: "success", text: `Created ${project.name}.` });
+              } catch (error) {
+                setNotice({ kind: "error", text: errorText(error) });
+              }
+            }}
+          />
+        ) : !projectId ? (
+          <EmptyState
+            title="No project selected"
+            detail="Choose a project from the header, or create one on Project overview, to use this workspace."
+            action={<Button variant="secondary" onClick={() => setView("overview")}>Go to Project overview</Button>}
+          />
+        ) : (
+          <div key={`${projectId}-${resetKey}-${view}`} className="view-enter">
+            <Workspace view={view} {...props} />
+          </div>
+        )}
+      </section>
     </div>
   </main>;
 }
@@ -153,15 +374,219 @@ export function SignedInDashboard({ user, onSignOut }: { user: AuthUser; onSignO
 function Overview({ project, documents, health, onCreate }: { project?: Project; documents: Document[]; health: Record<string, string> | null; onCreate: (name: string) => void }) {
   const [name, setName] = useState("");
   const completed = documents.filter((item) => item.status === "completed").length;
-  return <div className="space-y-4"><div><p className="font-mono text-label uppercase text-signal">Project dashboard</p><h2 className="mt-1 text-2xl font-semibold tracking-tight text-ink">{project?.name ?? "Start a Project Atlas workspace"}</h2><p className="mt-1 text-sm text-muted">Evidence, engineering review, and scenario analysis in one controlled project workspace.</p></div><div className="grid gap-3 md:grid-cols-3"><Metric label="Documents" value={String(documents.length)} detail={`${completed} ingested`} /><Metric label="AI controls" value="Evidence-first" detail="Citations required" /><Metric label="Live integrations" value="Roadmap" detail="Procurement is demo-only" /></div><ExecutiveMetrics projectId={project?.id} /><Card><h3 className="font-semibold">Create project</h3><form className="mt-3 flex max-w-xl gap-2" onSubmit={(event) => { event.preventDefault(); if (name.trim()) { onCreate(name.trim()); setName(""); } }}><Input value={name} onChange={(event) => setName(event.target.value)} placeholder="e.g. Atlas DC-01" /><Button>Create project</Button></form></Card><Card><h3 className="font-semibold">Service health</h3><div className="mt-3 flex flex-wrap gap-3">{health ? Object.entries(health).map(([name, value]) => <span className="text-sm" key={name}><Badge tone={value === "ok" ? "green" : "red"}>{name}: {value}</Badge></span>) : <span className="text-sm text-slate-500">API health is unavailable.</span>}</div></Card></div>;
+  const pending = documents.length - completed;
+
+  return <div className="space-y-5">
+    <Reveal>
+      <div>
+        <p className="font-mono text-label uppercase text-signal">Project dashboard</p>
+        <h2 className="mt-1 text-2xl font-semibold tracking-tight text-ink sm:text-display-sm">
+          {project?.name ?? "Start a Project Atlas workspace"}
+        </h2>
+        <p className="mt-1.5 max-w-prose text-sm leading-6 text-muted">
+          Evidence, engineering review, and scenario analysis in one controlled project workspace.
+        </p>
+      </div>
+    </Reveal>
+
+    <Reveal delay={60}>
+      <div className="grid gap-3 sm:grid-cols-3">
+        <StatTile
+          label="Documents"
+          value={documents.length}
+          footnote={pending > 0 ? `${completed} ingested · ${pending} pending` : `${completed} ingested`}
+        />
+        <Card>
+          <p className="font-mono text-label uppercase text-muted">AI controls</p>
+          <p className="mt-1.5 text-xl font-semibold leading-7 text-ink">Evidence-first</p>
+          <p className="mt-1 text-xs leading-5 text-muted">
+            Citations required. An unsupported claim is refused rather than shown.
+          </p>
+        </Card>
+        <Card>
+          <p className="font-mono text-label uppercase text-muted">Live integrations</p>
+          <p className="mt-1.5 text-xl font-semibold leading-7 text-ink">Roadmap</p>
+          <p className="mt-1 text-xs leading-5 text-muted">
+            Procurement and shipment data are a synthetic simulation, not a live feed.
+          </p>
+        </Card>
+      </div>
+    </Reveal>
+
+    <Reveal delay={120}>
+      <ExecutiveMetrics projectId={project?.id} />
+    </Reveal>
+
+    <Reveal delay={160}>
+      <div className="grid gap-4 lg:grid-cols-2">
+        <Card>
+          <PanelTitle eyebrow="Setup" title="Create project" detail="Each project is an isolated evidence scope." />
+          <form
+            className="flex flex-wrap gap-2"
+            onSubmit={(event) => { event.preventDefault(); if (name.trim()) { onCreate(name.trim()); setName(""); } }}
+          >
+            <Input
+              className="min-w-0 flex-1"
+              value={name}
+              onChange={(event) => setName(event.target.value)}
+              placeholder="e.g. Atlas DC-01"
+              aria-label="New project name"
+            />
+            <Button disabled={!name.trim()}>Create project</Button>
+          </form>
+        </Card>
+
+        <Card>
+          <PanelTitle eyebrow="Operations" title="Service health" detail="Reported by the API readiness probe." />
+          <div className="flex flex-wrap gap-2">
+            {health ? (
+              Object.entries(health).map(([component, value]) => (
+                <Badge key={component} tone={value === "ok" ? "green" : "red"} dot>
+                  {component}: {value}
+                </Badge>
+              ))
+            ) : (
+              <p className="text-sm text-muted">API health is unavailable.</p>
+            )}
+          </div>
+        </Card>
+      </div>
+    </Reveal>
+  </div>;
 }
 
+/**
+ * The connected risk and readiness summary.
+ *
+ * This is the one panel that has to answer "what is the state of this project"
+ * at a glance, so the form is chosen per value rather than uniformly:
+ *
+ *   counts and day totals  -> stat tiles (a single current value is not a
+ *                             one-bar bar chart)
+ *   the two 0-100 scores   -> meters, which is what a ratio against a limit is
+ *   the propagation itself -> a process diagram, since it has sequence and
+ *                             state but no scale
+ *
+ * Every figure is read from GET /projects/{id}/executive-summary. Nothing is
+ * recomputed in the browser, so what the reader sees is what the deterministic
+ * engines produced.
+ */
 export function ExecutiveMetrics({ projectId }: { projectId?: string }) {
   const [result, setResult] = useState<{ projectId: string; summary: ExecutiveSummary | null; error: boolean } | null>(null);
   useEffect(() => { if (!projectId) return; let active = true; void api.executiveSummary(projectId).then((summary) => active && setResult({ projectId, summary, error: false }), () => active && setResult({ projectId, summary: null, error: true })); return () => { active = false; }; }, [projectId]);
-  const current = result?.projectId === projectId ? result : null; const summary = current?.summary ?? null;
-  const message = !projectId ? "Select a project to view the executive risk summary." : current?.error ? "Executive summary unavailable. Retry by reopening Project overview." : !summary ? "Loading connected project impacts…" : null;
-  return <Card><div className="flex items-center justify-between"><h3 className="font-semibold">Connected risk and readiness summary</h3>{summary?.synthetic_data && <Badge tone="amber">Synthetic demo scenario</Badge>}</div><div className="mt-3 grid gap-2.5 sm:grid-cols-2 xl:grid-cols-3"><MetricMini label="Critical deviations" value={summary ? String(summary.critical_deviations) : "—"} /><MetricMini label="Equipment at risk" value={summary ? String(summary.equipment_at_risk) : "—"} /><MetricMini label="Schedule exposure" value={summary ? `${summary.schedule_exposure_days} days` : "—"} /><MetricMini label="Supply-chain alerts" value={summary ? String(summary.supply_chain_alerts) : "—"} /><MetricMini label="Commissioning readiness" value={summary?.commissioning_readiness === undefined || summary.commissioning_readiness === null ? "—" : `${summary.commissioning_readiness}/100`} /><MetricMini label="Open NCRs" value={summary ? String(summary.open_ncrs) : "—"} /><MetricMini label="Measured hours saved" value={summary ? `${summary.measured_hours_saved.toFixed(2)} h` : "—"} /><MetricMini label="Recommended mitigation" value={summary?.recommended_mitigation ?? "Not simulated"} /><MetricMini label="Evidence confidence" value={summary?.evidence_confidence === undefined || summary.evidence_confidence === null ? "—" : `${Math.round(summary.evidence_confidence * 100)}%`} /></div>{message ? <p className={`mt-3 text-xs ${current?.error ? "text-rose-700" : "text-slate-500"}`}>{message}</p> : <p className="mt-3 text-xs text-slate-500">Projected monthly hours saved: {summary?.projected_monthly_hours_saved.toFixed(2)} h · separately labelled projection</p>}</Card>;
+
+  const current = result?.projectId === projectId ? result : null;
+  const summary = current?.summary ?? null;
+  const loading = Boolean(projectId) && !current;
+
+  if (!projectId) {
+    return <Card>
+      <PanelTitle eyebrow="Executive" title="Connected risk and readiness" />
+      <EmptyState title="No project selected" detail="Select a project to view the executive risk summary." />
+    </Card>;
+  }
+
+  if (current?.error) {
+    return <Card>
+      <PanelTitle eyebrow="Executive" title="Connected risk and readiness" />
+      <Notice kind="error">Executive summary unavailable. Retry by reopening Project overview.</Notice>
+    </Card>;
+  }
+
+  const readiness = summary?.commissioning_readiness ?? null;
+  const confidence = summary?.evidence_confidence ?? null;
+
+  // The chain reads the same summary, so the narrative and the numbers cannot
+  // drift apart.
+  const stages: ChainStage[] = [
+    { key: "deviation", label: "Specification deviation", value: summary ? String(summary.critical_deviations) + " critical" : "—", tone: summary && summary.critical_deviations > 0 ? "critical" : "neutral" },
+    { key: "equipment", label: "Equipment affected", value: summary ? String(summary.equipment_at_risk) + " item(s)" : "—", tone: summary && summary.equipment_at_risk > 0 ? "serious" : "neutral" },
+    { key: "supply", label: "Supply-chain alerts", value: summary ? String(summary.supply_chain_alerts) : "—", tone: summary && summary.supply_chain_alerts > 0 ? "warning" : "neutral" },
+    { key: "schedule", label: "Schedule exposure", value: summary ? String(summary.schedule_exposure_days) + " days" : "—", tone: summary && summary.schedule_exposure_days > 0 ? "critical" : "neutral" },
+    { key: "readiness", label: "Commissioning readiness", value: readiness === null ? "—" : String(readiness) + "/100", tone: readiness === null ? "neutral" : readiness >= 75 ? "good" : readiness >= 50 ? "warning" : "critical" },
+    { key: "decision", label: "Awaiting decision", value: summary?.recommended_mitigation ?? "Not simulated", detail: "A reviewer creates the approved record", tone: "neutral" },
+  ];
+
+  return <div className="space-y-4">
+    <Card>
+      <PanelTitle
+        eyebrow="Executive"
+        title="Connected risk and readiness summary"
+        detail="One deviation, followed through to the decision it forces."
+        right={summary?.synthetic_data ? <Badge tone="amber" dot>Synthetic demo scenario</Badge> : undefined}
+      />
+
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <StatTile label="Critical deviations" value={summary?.critical_deviations ?? null} loading={loading}
+          tone={summary && summary.critical_deviations > 0 ? "critical" : "neutral"}
+          footnote="Non-compliant findings at high severity" />
+        <StatTile label="Schedule exposure" value={summary?.schedule_exposure_days ?? null} unit="days" loading={loading}
+          tone={summary && summary.schedule_exposure_days > 0 ? "critical" : "neutral"}
+          footnote="Critical path, after float is consumed" />
+        <StatTile label="Equipment at risk" value={summary?.equipment_at_risk ?? null} loading={loading}
+          tone={summary && summary.equipment_at_risk > 0 ? "serious" : "neutral"}
+          footnote="Items with an open impact chain" />
+        <StatTile label="Open NCRs" value={summary?.open_ncrs ?? null} loading={loading}
+          tone={summary && summary.open_ncrs > 0 ? "warning" : "neutral"}
+          footnote="Raised by deterministic pass/fail" />
+      </div>
+
+      <div className="mt-4 grid gap-6 border-t border-slate-100 pt-4 sm:grid-cols-2">
+        <div className="space-y-4">
+          <Meter label="Commissioning readiness" value={readiness ?? 0} max={100}
+            thresholds={[[50, "critical"], [75, "warning"]]}
+            caption="Computed from the procedures that can currently be completed, not entered by hand." />
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <p className="font-mono text-label uppercase text-muted">Supply-chain alerts</p>
+              <p className="tabular mt-0.5 text-xl font-semibold text-ink">{summary ? summary.supply_chain_alerts : "—"}</p>
+            </div>
+            <div className="min-w-0">
+              <p className="font-mono text-label uppercase text-muted">Recommended mitigation</p>
+              <p className="mt-0.5 truncate text-sm font-semibold text-ink" title={summary?.recommended_mitigation ?? "Not simulated"}>
+                {summary?.recommended_mitigation ?? "Not simulated"}
+              </p>
+              <p className="mt-0.5 text-xs text-muted">Suggestion only — a reviewer decides.</p>
+            </div>
+          </div>
+        </div>
+        <div className="space-y-4">
+          <Meter label="Evidence confidence" value={confidence === null ? 0 : Math.round(confidence * 100)} max={100}
+            thresholds={[[40, "critical"], [70, "warning"]]}
+            caption="How well the retrieved evidence supports the generated claims." />
+          <div>
+            <p className="font-mono text-label uppercase text-muted">Measured hours saved</p>
+            <p className="tabular mt-0.5 text-xl font-semibold text-ink">{summary ? summary.measured_hours_saved.toFixed(2) + " h" : "—"}</p>
+            <p className="mt-1 text-xs leading-5 text-muted">
+              {summary ? "Projected monthly " + summary.projected_monthly_hours_saved.toFixed(2) + " h — labelled a projection, not a measurement." : "Awaiting benchmark records."}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <TableView
+        caption="Executive risk and readiness values"
+        columns={["Measure", "Value"]}
+        rows={[
+          ["Critical deviations", summary ? String(summary.critical_deviations) : "—"],
+          ["Equipment at risk", summary ? String(summary.equipment_at_risk) : "—"],
+          ["Schedule exposure", summary ? String(summary.schedule_exposure_days) + " days" : "—"],
+          ["Supply-chain alerts", summary ? String(summary.supply_chain_alerts) : "—"],
+          ["Commissioning readiness", readiness === null ? "—" : String(readiness) + "/100"],
+          ["Open NCRs", summary ? String(summary.open_ncrs) : "—"],
+          ["Measured hours saved", summary ? summary.measured_hours_saved.toFixed(2) + " h" : "—"],
+          ["Recommended mitigation", summary?.recommended_mitigation ?? "Not simulated"],
+          ["Evidence confidence", confidence === null ? "—" : String(Math.round(confidence * 100)) + "%"],
+        ]}
+      />
+    </Card>
+
+    <Card>
+      <PanelTitle eyebrow="Propagation" title="Impact chain"
+        detail="Each link is derived from the one before it: sequence and state, not a scale." />
+      <ImpactChainDiagram stages={stages} />
+    </Card>
+  </div>;
 }
 
 function Metric({ label, value, detail }: { label: string; value: string; detail: string }) { return <Card className="p-4"><p className="font-mono text-label uppercase text-slate-500">{label}</p><p className="tabular mt-1.5 truncate text-xl font-semibold leading-7 text-ink" title={value}>{value}</p><p className="mt-1 text-xs text-muted">{detail}</p></Card>; }

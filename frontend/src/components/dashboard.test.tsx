@@ -32,9 +32,22 @@ describe("Atlas demo dashboard", () => {
   });
 
   it("provides the executive risk summary empty state", () => {
+    // With no project there is nothing to measure, so the panel says so rather
+    // than rendering nine em-dashes and calling it a dashboard.
     const html = renderToStaticMarkup(<ExecutiveMetrics />);
     expect(html).toContain("executive risk summary");
+    expect(html).toContain("No project selected");
+    expect(html).not.toContain("Critical deviations");
+  });
+
+  it("names every executive measure once a project is selected", () => {
+    // Effects do not run under static rendering, so this is the pre-fetch
+    // state: labels and skeletons present, values not yet arrived. The labels
+    // are what must be complete.
+    const html = renderToStaticMarkup(<ExecutiveMetrics projectId="a0fc021e-b67f-498f-a724-1bc2cb0c5827" />);
     for (const label of ["Critical deviations", "Equipment at risk", "Schedule exposure", "Supply-chain alerts", "Commissioning readiness", "Open NCRs", "Measured hours saved", "Recommended mitigation", "Evidence confidence"]) expect(html).toContain(label);
+    // The propagation diagram ships with it.
+    expect(html).toContain("Impact chain");
   });
 
   it("shows an interstitial before the session is known, not the workspace", () => {
