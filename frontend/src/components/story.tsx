@@ -4,7 +4,7 @@ import { useState } from "react";
 
 import { cn } from "../lib/utils";
 import { useScrollProgress } from "../lib/motion";
-import { CountUp, Reveal, Stagger } from "./motion";
+import { Reveal, Stagger } from "./motion";
 import { Button, Card } from "./ui";
 
 /**
@@ -20,53 +20,67 @@ import { Button, Card } from "./ui";
  * reader cannot go and check is a brochure.
  */
 
+/*
+ * The chain, described as a mechanism.
+ *
+ * This previously narrated the seeded switchgear scenario: 50 kAIC against 65
+ * required, 35 days, 28 days, a readiness score of 45. Those are one example's
+ * figures, and presenting them on the landing page stated a particular
+ * project's numbers as though they were the product. Nothing in the chain is
+ * switchgear-specific - it runs on any equipment item that has a specification,
+ * a submittal and a dated milestone.
+ *
+ * So the steps now say what each link *does*. The worked example lives in the
+ * workspace, where every figure is attached to the document it came from and
+ * can be checked, which is where a number belongs.
+ */
 const CHAIN = [
   {
     key: "deviation",
     stage: "Specification",
-    headline: "A clause is missed",
-    body: "The specification requires 65 kAIC interrupting rating. The vendor submittal offers 50 kAIC. Nothing in the document says it is short - the comparison has to be made.",
-    metric: { value: 50, unit: " kAIC", label: "Offered", target: "65 kAIC required" },
+    headline: "A requirement is not met",
+    signal: "Offered value against the specified one",
+    body: "A submittal offers something the specification does not allow - a rating, a capacity, a class, a clearance. The document rarely says so; the comparison has to be made, in the unit the specification uses rather than the unit the vendor quoted.",
     tone: "critical" as const,
   },
   {
     key: "vendor",
     stage: "Procurement",
     headline: "It becomes a resubmission",
-    body: "A rating that does not meet the requirement is not a paperwork problem. The equipment has to be re-offered, and the clock on the replacement starts from that decision.",
-    metric: { value: 1, unit: "", label: "Resubmission", target: "Vendor re-offer required" },
+    signal: "Vendor re-offer required",
+    body: "Equipment that does not meet the requirement has to be re-offered. That is not a paperwork step: the clock on the replacement starts from the decision, and the replacement carries its own lead time.",
     tone: "serious" as const,
   },
   {
     key: "delivery",
     stage: "Delivery",
     headline: "The delivery date moves",
-    body: "The replacement carries its own lead time. The forecast arrival moves out, and the delivery milestone that everything downstream depends on moves with it.",
-    metric: { value: 35, unit: " days", label: "Forecast delay", target: "Against a dated milestone" },
+    signal: "Forecast arrival against the dated milestone",
+    body: "The forecast arrival moves out, and the delivery milestone everything downstream depends on moves with it. This is the point where a document problem becomes a date.",
     tone: "critical" as const,
   },
   {
     key: "schedule",
     stage: "Schedule",
     headline: "Float absorbs what it can",
-    body: "Some of the delay is absorbed by float. What is left propagates along the dependency chain to installation, energization and the integrated systems test.",
-    metric: { value: 28, unit: " days", label: "Critical-path exposure", target: "After float is consumed" },
+    signal: "Critical-path exposure after float",
+    body: "Some of the slip is absorbed by float. What is left propagates along the dependency chain to installation, energization and the integrated systems test - computed from the schedule, not estimated.",
     tone: "critical" as const,
   },
   {
     key: "commissioning",
     stage: "Commissioning",
-    headline: "Readiness falls",
-    body: "Readiness is not a status somebody types in. It is computed from the procedures that can be completed, and it falls when the equipment they depend on is not there.",
-    metric: { value: 45, unit: "", label: "Readiness score", target: "Deterministic, from rules" },
+    headline: "Readiness is recomputed",
+    signal: "Deterministic score from the rules",
+    body: "Readiness is not a status somebody types in. It is computed from the procedures that can currently be completed, so it falls on its own when the equipment they depend on is not there.",
     tone: "warning" as const,
   },
   {
     key: "decision",
     stage: "Decision",
     headline: "A person decides",
-    body: "Atlas produces the options and the evidence behind each. It does not approve anything. The approved record is created by a reviewer, and it is marked as theirs.",
-    metric: { value: 3, unit: "", label: "Mitigation options", target: "Awaiting human decision" },
+    signal: "Options and evidence, awaiting a reviewer",
+    body: "Atlas produces the mitigation options and the evidence behind each one. It approves nothing. The approved record is created by a reviewer and marked as theirs.",
     tone: "good" as const,
   },
 ];
@@ -145,24 +159,18 @@ export function StoryHero({ onEnter, entering }: { onEnter: () => void; entering
           </div>
         </Reveal>
 
-        {/* Headline figures from the seeded scenario. */}
+        {/* The six links, named. Previously four figures lifted from the seeded
+            switchgear scenario, which read as the product's numbers rather
+            than one example's. */}
         <Reveal delay={300}>
-          <dl className="mt-10 flex max-w-3xl flex-wrap gap-x-8 gap-y-4 border-t border-white/15 pt-5">
-            {[
-              { value: 35, unit: "d", label: "Delivery delay" },
-              { value: 28, unit: "d", label: "Critical-path exposure" },
-              { value: 45, unit: "", label: "Readiness score" },
-              { value: 27, unit: "", label: "Documents cited" },
-            ].map((item) => (
-              <div key={item.label}>
-                <dd className="text-2xl font-semibold leading-none text-white">
-                  <CountUp value={item.value} />
-                  <span className="text-base font-medium text-sky-300/80">{item.unit}</span>
-                </dd>
-                <dt className="mt-1 font-mono text-label uppercase text-sky-200/70">{item.label}</dt>
-              </div>
+          <ol className="mt-10 flex max-w-3xl flex-wrap items-center gap-x-2 gap-y-2 border-t border-white/15 pt-5 font-mono text-label uppercase text-sky-200/80">
+            {["Specification", "Procurement", "Delivery", "Schedule", "Commissioning", "Decision"].map((stage, index) => (
+              <li key={stage} className="flex items-center gap-2">
+                {index > 0 ? <span aria-hidden="true" className="text-sky-400/50">→</span> : null}
+                <span>{stage}</span>
+              </li>
             ))}
-          </dl>
+          </ol>
         </Reveal>
       </div>
     </section>
@@ -195,9 +203,10 @@ export function StoryChain() {
           Six steps, each one cited
         </h2>
         <p className="mt-4 max-w-prose text-base leading-7 text-muted">
-          The figures below come from the seeded SWGR-A scenario in this deployment. They are
-          synthetic and deliberately planted, so the chain can be checked end to end rather than
-          demonstrated on a slide.
+          The same six links run for any equipment item that has a specification, a submittal and a
+          dated milestone. The workspace holds a worked example with real figures, each one attached
+          to the document, page and clause it came from, so the chain can be checked rather than
+          taken on trust.
         </p>
       </Reveal>
 
@@ -243,25 +252,13 @@ export function StoryChain() {
                   isOpen ? cn("ring-2", TONE_RING[step.tone]) : "hover:-translate-y-px hover:shadow-card-hover motion-reduce:hover:translate-y-0",
                 )}
               >
-                <span className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                <span className="flex items-center gap-1.5">
+                  <span aria-hidden="true" className={cn("h-1.5 w-1.5 rounded-full", TONE_PIP[step.tone])} />
                   <span className="font-mono text-label uppercase text-signal">{step.stage}</span>
-                  <span className="flex items-center gap-1.5">
-                    <span aria-hidden="true" className={cn("h-1.5 w-1.5 rounded-full", TONE_PIP[step.tone])} />
-                    <span className="text-xs font-medium text-muted">{step.metric.label}</span>
-                  </span>
                 </span>
 
-                {/* Adjacent, not pinned right: justify-between put a short headline and its
-                    figure half a card apart, which is the thing that read badly before. */}
-                <span className="mt-1.5 flex flex-wrap items-baseline gap-x-3 gap-y-1">
-                  <span className="text-lg font-semibold leading-6 text-ink">{step.headline}</span>
-                  <span className="tabular text-lg font-semibold leading-6 text-ink">
-                    <CountUp value={step.metric.value} />
-                    <span className="text-sm font-medium text-muted">{step.metric.unit}</span>
-                  </span>
-                </span>
-
-                <span className="mt-0.5 block text-xs text-muted">{step.metric.target}</span>
+                <span className="mt-1.5 block text-lg font-semibold leading-6 text-ink">{step.headline}</span>
+                <span className="mt-0.5 block text-xs text-muted">{step.signal}</span>
 
                 <span
                   className={cn(
@@ -353,8 +350,9 @@ export function StoryClose({ onEnter, entering }: { onEnter: () => void; enterin
             The chain is inspectable. Go and check it.
           </h2>
           <p className="mx-auto mt-4 max-w-prose text-base leading-7 text-sky-100/80">
-            Open the workspace and follow SWGR-A from the clause to the decision. Every figure links
-            back to the document, page and section it came from.
+            Open the workspace, pick any equipment item with an open finding, and follow it from the
+            clause to the decision. Every figure links back to the document, page and section it
+            came from.
           </p>
           <div className="mt-8 flex justify-center">
             <Button size="lg" variant="signal" onClick={onEnter} loading={entering}>
