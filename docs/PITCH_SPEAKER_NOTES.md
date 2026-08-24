@@ -44,7 +44,7 @@ Every section of the required brief is honoured, in order, on time.
 | Frontend test suite | **9 passed**, 2 files — Vitest |
 | Compliance 6/0/0/6, P/R/F1 1.0 | Current in `evaluation/latest.md` |
 | RAG Recall@5 / @12 / MRR = 1.0 | Current |
-| Advanced citation precision 0.6667 vs baseline 1.0 | Current — the regression we disclose |
+| Advanced citation precision 0.2432 vs baseline 0.3226, on 16 held-out questions | Current — the regression we disclose. If asked about the older `0.667 vs 1.0`: that ran on three test questions, and the tuner broke ties on wall-clock latency, so it moved between runs. Both fixed; the regression survived the fix |
 | Schedule 35 d predicted, 0 d error | Current |
 | Commissioning 21/21, coverage 1.0, NCR 1/1 | Current |
 | Manual hours | `NOT_MEASURED` — do not claim a figure |
@@ -302,5 +302,5 @@ Honestly, not yet. Ingestion is synchronous today. Queue workers, object storage
 - **Pace:** ~130 words per minute. If you are hitting 150, you are rushing the numbers, and the numbers are the argument.
 - **Three deliberate pauses:** after "$30–150 million" (sheet 02), after "two to three per cent of the financing charge" (sheet 09), after "no business asking an engineer to trust its findings" (sheet 12).
 - **Honesty beats:** say "synthetic" on sheet 06, "no revenue, no pilots, no LOIs" on sheet 09, and "NOT_MEASURED" on sheet 11. Judges consistently reward disclosed limitations over polished claims — and it mirrors what the product itself does.
-- **Numbers to know cold, without the slide:** 8.33 GW, $30–150 M, 65 vs 50 kAIC, 28 days exposure, ₹1.5–2 crore, 0.667 vs 1.0.
+- **Numbers to know cold, without the slide:** 8.33 GW, $30–150 M, 65 vs 50 kAIC, 28 days exposure, ₹1.5–2 crore, 0.2432 vs 0.3226 on 16 held-out cases.
 - **If a judge names a competitor you don't recognise:** *"I don't know that one — I'll look it up."* Never bluff. Appendix A2 has the full landscape you do know.

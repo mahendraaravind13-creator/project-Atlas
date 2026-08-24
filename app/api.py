@@ -78,7 +78,7 @@ from app.procurement import (
     shipment_risk,
     shipment_timeline,
 )
-from app.schedule import ScheduleAnalysis, ScheduleScenario, ScheduleSnapshot
+from app.schedule import ScheduleAnalysis, ScheduleScenario, ScheduleSnapshot, load_site_conditions
 from app.workflow import ConversationMessage, CopilotResult, QueryPlanResult, RfiResult
 
 logger = logging.getLogger("atlas.api")
@@ -168,6 +168,11 @@ class ComplianceReviewRequest(BaseModel):
 
 class ScheduleAnalysisRequest(ScheduleScenario):
     schedule_document_id: uuid.UUID
+    # Point this at an uploaded site conditions log and weather and workforce
+    # are read from its dated rows instead of from this request. What the
+    # analysis used is stated back in `mitigation_inputs` either way, so a
+    # reviewer can always tell an evidenced figure from a typed-in one.
+    site_conditions_document_id: uuid.UUID | None = None
 
 
 class CommissioningRecordRequest(BaseModel):
@@ -537,7 +542,11 @@ async def analyze_schedule(
     session: AsyncSession = Depends(get_session),
 ) -> ScheduleAnalysis:
     schedule = await _document_or_404(session, project_id, payload.schedule_document_id)
-    analysis = await request.app.state.schedule_service.analyze(schedule, payload)
+    conditions = None
+    if payload.site_conditions_document_id:
+        conditions_document = await _document_or_404(session, project_id, payload.site_conditions_document_id)
+        conditions = load_site_conditions(Path(conditions_document.storage_path), conditions_document)
+    analysis = await request.app.state.schedule_service.analyze(schedule, payload, conditions)
     session.add(
         AuditEvent(
             project_id=project_id,

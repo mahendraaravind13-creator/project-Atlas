@@ -1400,9 +1400,11 @@ ul.ticks li b { color: var(--ink); font-weight: 600; }
           </div>
           <div class="hairline"></div>
           <p class="small">
-            And the one that didn't win: our advanced RAG path scores <b>0.667 citation precision against the
-            baseline's 1.0</b>. It is in the report, unhidden. A system that hides its own regressions
-            has no business asking an engineer to trust its findings.
+            And the one that didn't win: on sixteen held-out questions our advanced RAG path scores
+            <b>0.2432 citation precision against the baseline's 0.3226</b>. It is in the report, unhidden.
+            A system that hides its own regressions has no business asking an engineer to trust its
+            findings &mdash; so when we went to widen the test set from three questions to sixteen, we
+            reported the two harness defects we found on the way as well.
           </p>
         </div>
 
@@ -1438,13 +1440,13 @@ ul.ticks li b { color: var(--ink); font-weight: 600; }
               <div class="hairline"></div>
               <div class="row between"><span class="small">Compliance precision · recall · F1</span><b class="small mono" style="color:var(--ink);">1.0 · 1.0 · 1.0</b></div>
               <div class="hairline"></div>
-              <div class="row between"><span class="small">RAG Recall@5 · Recall@12 · MRR</span><b class="small mono" style="color:var(--ink);">1.0 · 1.0 · 1.0</b></div>
+              <div class="row between"><span class="small">RAG Recall@12 · MRR — advanced vs baseline, 16 held-out cases</span><b class="small mono" style="color:var(--ink);">1.0 vs 0.92 · 0.75 vs 0.63</b></div>
               <div class="hairline"></div>
-              <div class="row between"><span class="small">Citation precision — advanced vs baseline</span><b class="small mono" style="color:var(--alert);">0.667 vs 1.0</b></div>
+              <div class="row between"><span class="small">Citation precision — advanced vs baseline</span><b class="small mono" style="color:var(--alert);">0.2432 vs 0.3226</b></div>
               <div class="hairline"></div>
-              <div class="row between"><span class="small">Schedule prediction error, one planted case</span><b class="small mono" style="color:var(--ink);">0 days on 35</b></div>
+              <div class="row between"><span class="small">Schedule prediction error — 12 cases, mean absolute · max</span><b class="small mono" style="color:var(--ink);">1.5 · 3 days</b></div>
               <div class="hairline"></div>
-              <div class="row between"><span class="small">Supply chain — shipments · tiers · alert latency</span><b class="small mono" style="color:var(--ink);">5/5 · 15 · 55 min</b></div>
+              <div class="row between"><span class="small">Supply chain — shipments · tiers · alert latency median/max</span><b class="small mono" style="color:var(--ink);">5/5 · 15 · 75/420 min</b></div>
               <div class="hairline"></div>
               <div class="row between"><span class="small">Commissioning coverage · NCR correctness</span><b class="small mono" style="color:var(--ink);">1.0 · 1/1</b></div>
               <div class="hairline"></div>
@@ -1657,7 +1659,8 @@ ul.ticks li b { color: var(--ink); font-weight: 600; }
      <p>The risk row at the bottom is deliberate — name the three things that could kill this before a judge does.</p>`,
 
     `<p class="say">"From finding out at commissioning, to knowing at submittal."</p>
-     <p>Read the four measured numbers. Then the regression — <b>0.667 against the baseline's 1.0</b> — and the line about hiding regressions. That paragraph is the strongest thing in the deck; don't rush it.</p>
+     <p>Read the four measured numbers. Then the regression — <b>0.2432 against the baseline's 0.3226</b> — and the line about hiding regressions. That paragraph is the strongest thing in the deck; don't rush it.</p>
+     <p>If a judge asks why it isn't the <span class="mono">0.667 vs 1.0</span> of an earlier draft: that ran on <b>three</b> test questions, where one extra citation moves the figure by a third, and the parameter search broke ties on measured wall-clock latency, so the same script picked different parameters on consecutive runs. Sixteen cases and a deterministic tiebreaker later, three runs agree exactly and the regression is still there. That is the answer you want to give — we found it by checking our own instrument.</p>
      <p class="say">"A hackathon prototype today. The control layer for the twenty to twenty-five billion dollars India is about to spend on data-centre construction, if we're right. Thank you."</p>`,
 
     `<p>Appendix. Do not present — open it if a judge asks how anything was measured, or challenges a metric.</p>`,

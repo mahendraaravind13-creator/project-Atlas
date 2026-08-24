@@ -83,14 +83,21 @@ Values below are calculated from the synthetic evaluation suite in [`evaluation/
 | Evaluation area | Calculated evidence |
 | --- | --- |
 | Compliance | Precision/recall/F1 `1.0/1.0/1.0` on 12 labelled synthetic outcomes |
-| Advanced RAG | Recall@5 `1.0`, Recall@12 `1.0`, MRR `1.0`, correct-document/page rate `1.0`, citation completeness `1.0`, citation precision `0.6667`, unsupported-claim rate `0.0` |
-| Baseline RAG | Recall@5 `1.0`, Recall@12 `1.0`, citation precision `1.0` |
-| Schedule | `35`-day predicted and simulated delay; `0`-day error on one planted case |
-| Supply chain | `5/5` synthetic shipments represented; `15` supplier tiers; mean alert latency `55` minutes |
+| Advanced RAG | On **16 held-out questions**: Recall@5 `0.9231`, Recall@12 `1.0`, MRR `0.7521`, correct-document rate `0.8462`, correct-page rate `0.6923`, citation precision `0.2432`, unsupported-claim rate `0.0`, `172.94` mean input tokens |
+| Baseline RAG | Same 16 questions: Recall@5 `0.9231`, Recall@12 `0.9231`, MRR `0.6269`, correct-document rate `0.6923`, citation precision `0.3226`, `457.88` mean input tokens |
+| Schedule | **12 cases** over 6 tasks and 2 analysis dates: mean absolute prediction error `1.5` days (`0`–`3`, median `3`); lead time `0`–`65` days, median `28` |
+| Supply chain | `5/5` synthetic shipments, `15` supplier tiers, all 5 carrying events. **8 alerts**: latency `20`–`420` minutes, median `75`, `6/8` inside two hours; first alert `17`–`55` days before planned arrival |
 | Commissioning | `21/21` automatically evaluated steps; automation coverage `1.0` |
 | Manual effort / savings | **Not measured yet** |
 
-Both paths improved substantially once dense retrieval used a real embedding model instead of a hashed bag of words, and once the evidence gate stopped failing a whole context because one retrieved RFI was still open. The advanced path still does not beat the baseline on every guarded metric — its citation precision is `0.6667` against `1.0`, because the evaluation harness's extractive responder always cites its top three chunks. The guard therefore declines to claim an improvement, and that result is retained rather than hidden.
+**Read the held-out set size first.** These numbers were previously reported on **three** test questions, where one extra citation on one question moved citation precision by a third — which is exactly what produced the old `0.6667`. The labelled set is now **12 development and 16 test** questions, every case written against text read out of the corpus with its document, page and clause checked.
+
+**Two defects in the harness were found and fixed while expanding it.**
+
+1. *The comparison was not reproducible.* The parameter search ranked trials on four quality metrics and broke ties on **measured wall-clock latency** — and the quality terms tie on most trials, so the tiebreaker decided. Consecutive runs of the same script selected different parameters and reported different numbers. The tiebreaker is now mean input tokens, which is a property of the pipeline rather than of the machine; three consecutive runs now agree exactly, and a test asserts it.
+2. *Citation precision rewarded redundancy.* It counted every citation separately, so citing one correct page three times scored `3/3` while citing the correct page plus two others scored `1/3`. Dense retrieval routinely returns near-duplicate chunks from one page, so the metric partly measured how repetitive the top three was. It is now the standard set-based definition over distinct cited references; the per-citation figure is still reported beside it.
+
+**What the corrected comparison shows.** Advanced retrieval wins on ranking and cost — MRR `0.7521` against `0.6269`, correct-document rate `0.8462` against `0.6923`, Recall@12 `1.0` against `0.9231`, and **2.6× fewer input tokens** (`172.94` against `457.88`). It ties on Recall@5, correct-page rate, refusal accuracy and unsupported-claim rate. It **loses** on citation precision (`0.2432` against `0.3226`) and completeness, and the cause is visible in the per-case data: on questions like *"what operating aisle is required"* the correct page is retrieved but ranked sixth, and the responder cites its top three. Better ranking overall, worse final citation selection. The guard therefore still declines to claim an improvement, and the result is reported rather than hidden.
 
 ## Hackathon evaluation evidence
 

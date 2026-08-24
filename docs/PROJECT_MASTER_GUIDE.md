@@ -40,7 +40,7 @@ A single hyperscale data centre facility involves:
 - **Commissioning sequences spanning thousands of individual test procedures** across power, cooling, and IT infrastructure
 - **Zero tolerance for errors** that would compromise the future uptime SLA
 
-And yet a 2024 Turner & Townsend survey found that **67% of data centre EPC projects in Asia-Pacific experienced schedule overruns exceeding 10%**, with procurement misalignment and commissioning failures as the leading causes.
+The hackathon brief states that a 2024 Turner & Townsend survey found **67% of data centre EPC projects in Asia-Pacific experienced schedule overruns exceeding 10%**, with procurement misalignment and commissioning failures as the leading causes. We could not find that figure in the source and do not assert it — see the note directly below, and use the verified figure instead.
 
 > ⚠️ **Honesty note:** we tried to verify this 67% figure directly in the Turner & Townsend source and could not find it. What we *did* verify from their Data Centre Cost Index 2024 is that **~80% of respondents report delays to the manufacture or delivery of critical equipment**. We use the 80% figure in our pitch and flag the 67% as unverified. If a judge quotes the 67%, say it comes from the problem statement.
 
@@ -578,7 +578,7 @@ Because we know the right answers in advance, we can compute real precision and 
 | Schedule | 35-day prediction, 0-day error |
 | Supply chain | 5/5 shipments, 55-minute mean alert latency |
 | Commissioning | 21/21 steps, coverage 1.0, NCR 1/1 |
-| **Advanced RAG citation precision** | **0.667 vs baseline 1.0 — we lost, and we report it** |
+| **Advanced RAG citation precision** | **0.2432 vs baseline 0.3226 on 16 held-out questions — we lose, and we report it.** The old `0.667 vs 1.0` came from a three-case test split and a tuner that broke ties on wall-clock latency; both are fixed |
 | Manual hours saved | `NOT_MEASURED` |
 | Backend tests | **196 passing** |
 | Frontend tests | **22 passing** |
@@ -711,7 +711,9 @@ India builds data centres at **$5.4–8M per MW**, among the lowest costs in the
 
 ### And the meta-argument
 
-We report that our advanced RAG path scores **0.667 citation precision against the baseline's 1.0**. We could have hidden that. A system asking an engineer to trust its findings has no business hiding its own regressions — and a team that discloses one is a team you can believe about everything else.
+We report that our advanced RAG path loses to the baseline on citation precision — **0.2432 against 0.3226**, on sixteen held-out questions. We could have hidden that. A system asking an engineer to trust its findings has no business hiding its own regressions — and a team that discloses one is a team you can believe about everything else.
+
+What we did instead of hiding it was go and check the measurement. The earlier headline, `0.667 against 1.0`, was not wrong so much as meaningless: it came from a **three-case** test split, where one extra citation on one question moves the figure by a third. Expanding the labelled set to 16 test questions turned up two harness defects — a parameter search that broke ties on **measured wall-clock latency**, so the same script selected different parameters on consecutive runs, and a precision metric that counted duplicate citations separately, rewarding a pipeline for citing the same page three times. Both are fixed, three consecutive runs now agree exactly, and a test asserts the reproducibility. The regression survived all of that, which is the point: it is now a result rather than a coin toss, and the per-case data says where it comes from — advanced retrieval ranks the right evidence higher (MRR 0.7521 vs 0.6269) on 2.6× fewer input tokens, then cites its top three, which sometimes misses a correct page sitting at rank six.
 
 ---
 ---
@@ -1061,7 +1063,7 @@ Know this list better than the feature list. Every honest answer here is worth m
 - **Schedule results** are deterministic scenario analysis, not trained historical forecasting. Our error figure covers **one** planted case.
 - **Commissioning pass/fail** uses visible project rules, not certification logic. No electronic signatures, no mobile or offline execution.
 - **The evidence gate is too strict** — an open RFI in the retrieved set blocks the whole answer. Documented in `docs/LIMITATIONS.md` with a designed fix.
-- **Advanced RAG does not beat baseline overall** — citation precision 0.667 vs 1.0.
+- **Advanced RAG does not beat baseline overall** — citation precision 0.2432 vs 0.3226 on 16 held-out questions. It wins on ranking (MRR 0.7521 vs 0.6269) and cost (2.6× fewer input tokens), and loses on final citation selection.
 - **Prompt-injection handling** exists but has had no adversarial evaluation.
 
 ## Never measured
@@ -1079,7 +1081,7 @@ Know this list better than the feature list. Every honest answer here is worth m
 # PART 11 — Numbers cheat sheet
 
 **Know these six cold, without the slide:**
-`8.33 GW` · `$30–150M` · `65 vs 50 kAIC` · `28 days exposure` · `₹1.5–2 crore` · `0.667 vs 1.0`
+`8.33 GW` · `$30–150M` · `65 vs 50 kAIC` · `28 days exposure` · `₹1.5–2 crore` · `0.2432 vs 0.3226 on 16 cases`
 
 ### The problem — lead with these four
 - **9 out of 10** large infrastructure projects overrun (Oxford megaprojects)
@@ -1114,8 +1116,8 @@ Know this list better than the feature list. Every honest answer here is worth m
 - Recall@5 / @12 / MRR = **1.0**
 - Schedule: 35-day prediction, **0-day error**, one case
 - Commissioning: **21/21** steps, coverage 1.0, NCR 1/1
-- **196 backend tests, 22 frontend tests**
-- Advanced citation precision **0.667 vs baseline 1.0**
+- **220 backend tests, 22 frontend tests**
+- Advanced citation precision **0.2432 vs baseline 0.3226**, on a 16-case held-out split that replaced a 3-case one
 - Manual hours: **NOT_MEASURED**
 
 ### The demo
