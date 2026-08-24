@@ -1016,12 +1016,23 @@ async def _ground_answer(
     )
 
 
+def _evidence_text(chunk: ContextChunk) -> str:
+    """The retrieved evidence for a chunk, falling back to the shown excerpt."""
+    return chunk.source_text or chunk.text
+
+
 def _deterministic_support(
     claim: _GeneratedClaim, citation_map: dict[str, ContextChunk]
 ) -> ClaimSupport | None:
     if not claim.citation_ids:
         return "UNSUPPORTED"
-    evidence = " ".join(citation_map[value].text for value in claim.citation_ids)
+    # Checked against the retrieved evidence, not the compressed excerpt the
+    # model was shown. Compression exists to fit a prompt budget; using its
+    # output as the evidence of record meant a true claim was rejected whenever
+    # the sentence supporting it had been trimmed for length. The excerpt is a
+    # subset of this text, so widening the check cannot admit a claim that the
+    # documents do not support - it only stops discarding ones they do.
+    evidence = " ".join(_evidence_text(citation_map[value]) for value in claim.citation_ids)
     exact = _exact_terms(claim.text)
     missing_exact = {value for value in exact if not _contains_exact(evidence, value)}
     if missing_exact and claim.type != "calculation":
@@ -1045,7 +1056,7 @@ async def _semantic_verify(
         {
             "claim_index": index,
             "claim": claims[index].model_dump(),
-            "evidence": [citation_map[value].text for value in claims[index].citation_ids],
+            "evidence": [_evidence_text(citation_map[value]) for value in claims[index].citation_ids],
         }
         for index in uncertain
     ]

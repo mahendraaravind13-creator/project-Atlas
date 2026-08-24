@@ -31,6 +31,11 @@ class ContextChunk(RetrievalResult):
     rerank_score: float
     evidence_spans: list[EvidenceSpan] = Field(default_factory=list)
     expanded_from_chunk_ids: list[str] = Field(default_factory=list)
+    # The retrieved evidence before compression trimmed it to fit the prompt
+    # budget. `text` is what the model was shown; this is what the claim is
+    # checked against. Verifying against the trimmed excerpt rejected true
+    # claims whenever the supporting sentence happened to be cut for length.
+    source_text: str = ""
 
 
 class RevisionConflict(BaseModel):
@@ -210,6 +215,7 @@ class PostRetrievalProcessor:
                     rerank_score=rerank_score,
                     evidence_spans=spans,
                     expanded_from_chunk_ids=expanded_ids,
+                    source_text=source,
                 )
             )
             seen.extend(_segments(text))
