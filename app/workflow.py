@@ -974,6 +974,31 @@ async def _ground_answer(
         for claim, status in zip(generated.claims, statuses, strict=True)
         if status != "UNSUPPORTED"
     ]
+
+    # A refusal was previously undiagnosable: the response says only that the
+    # claims were unsupported, and nothing recorded which claim failed or which
+    # of its literal terms was absent from the cited evidence. Logged at INFO
+    # because this is the one path where the system declines to answer a question
+    # it retrieved evidence for, and that is worth being able to explain.
+    for claim, status in zip(generated.claims, statuses, strict=True):
+        if status != "UNSUPPORTED":
+            continue
+        evidence = " ".join(_evidence_text(citation_map[value]) for value in claim.citation_ids)
+        missing = sorted(
+            value for value in _exact_terms(claim.text) if not _contains_exact(evidence, value)
+        )
+        terms = _query_terms(claim.text)
+        overlap = len(terms & _query_terms(evidence)) / max(len(terms), 1)
+        logger.info(
+            "claim_rejected type=%s citations=%s missing_terms=%s overlap=%.2f evidence_chars=%d claim=%r",
+            claim.type,
+            ",".join(claim.citation_ids) or "none",
+            ";".join(missing) or "none",
+            overlap,
+            len(evidence),
+            claim.text[:180],
+        )
+
     if not claims:
         return _insufficient_answer(
             [*generated.missing_information, "Generated claims were not supported by project evidence."],
