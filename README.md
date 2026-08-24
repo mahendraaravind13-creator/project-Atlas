@@ -222,9 +222,7 @@ See [LIMITATIONS.md](docs/LIMITATIONS.md) and [ROADMAP.md](docs/ROADMAP.md). The
 
 ## Team
 
-- Team member 1 — _name and role to be added_
-- Team member 2 — _name and role to be added_
-- Team member 3 — _name and role to be added_
+
 
 ## Third-party acknowledgements and data notice
 
