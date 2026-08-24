@@ -46,7 +46,8 @@ from app.impact_chain import (
     equipment_impact_chain,
     propagate_event,
 )
-from app.models import AuditEvent, ComplianceFinding, Document, Equipment, IngestionJob, Project, ScheduleTask
+from app.auth import Principal, current_principal
+from app.models import AuditEvent, ComplianceFinding, Document, Equipment, IngestionJob, Project, ScheduleTask, ProjectMember
 from app.mitigation import (
     MitigationSelectionRequest,
     MitigationSelectionResponse,
@@ -234,17 +235,55 @@ async def _latest_job(session: AsyncSession, project_id: uuid.UUID, document_id:
 
 
 @router.post("", response_model=ProjectResponse, status_code=201)
-async def create_project(payload: ProjectCreate, session: AsyncSession = Depends(get_session)) -> ProjectResponse:
+async def create_project(
+    payload: ProjectCreate,
+    request: Request,
+    session: AsyncSession = Depends(get_session),
+    principal: Principal = Depends(current_principal),
+) -> ProjectResponse:
+    """
+    Create a project and make the creator its administrator.
+
+    Without that second step the creator immediately loses access to what they
+    just made: every project-scoped route requires a project_members row, so the
+    project existed, appeared in the list, and answered "Project not found" for
+    everything else.
+    """
     project = Project(name=payload.name)
     session.add(project)
+    await session.flush()
+
+    if request.app.state.settings.auth_enabled and not principal.is_anonymous:
+        session.add(ProjectMember(project_id=project.id, user_id=principal.user_id, role="admin"))
+
     await session.commit()
     await session.refresh(project)
     return ProjectResponse(id=project.id, name=project.name)
 
 
 @router.get("", response_model=list[ProjectResponse])
-async def list_projects(session: AsyncSession = Depends(get_session)) -> list[ProjectResponse]:
-    projects = (await session.scalars(select(Project).order_by(Project.created_at.desc()))).all()
+async def list_projects(
+    request: Request,
+    session: AsyncSession = Depends(get_session),
+    principal: Principal = Depends(current_principal),
+) -> list[ProjectResponse]:
+    """
+    The projects the caller may see.
+
+    This listed every project regardless of membership, which leaked other
+    tenants' project names and ids - the exact disclosure that returning 404
+    rather than 403 elsewhere was meant to prevent. A collection route has no
+    project_id in its path, so the router-level guard cannot filter it; the
+    filter has to be in the query.
+    """
+    statement = select(Project).order_by(Project.created_at.desc())
+
+    if request.app.state.settings.auth_enabled and not principal.is_anonymous:
+        statement = statement.join(
+            ProjectMember, ProjectMember.project_id == Project.id
+        ).where(ProjectMember.user_id == principal.user_id)
+
+    projects = (await session.scalars(statement)).all()
     return [ProjectResponse(id=project.id, name=project.name) for project in projects]
 
 

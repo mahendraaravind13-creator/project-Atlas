@@ -371,3 +371,70 @@ def test_short_password_is_refused_by_the_api(engine) -> None:
             headers={"Authorization": f"Bearer {token}"},
         )
         assert response.status_code == 422
+
+
+def test_creating_a_project_grants_the_creator_access(engine) -> None:
+    """
+    Every project-scoped route needs a membership row, so without one the
+    creator lost the project the moment they made it: it existed, it appeared in
+    the list, and everything else answered "Project not found".
+    """
+    with TestClient(app) as client:
+        session_factory = async_sessionmaker(engine, expire_on_commit=False)
+        app.state.session_factory = session_factory
+        app.state.settings = _settings(auth_enabled=False)
+        seed_project = client.post("/projects", json={"name": "Bootstrap"}).json()["id"]
+        _seed(session_factory, email="owner@example.com", role="admin",
+              project_id=uuid.UUID(seed_project))
+
+        app.state.settings = _settings(auth_enabled=True)
+        token = client.post(
+            "/auth/login", json={"email": "owner@example.com", "password": PASSWORD}
+        ).json()["access_token"]
+        headers = {"Authorization": f"Bearer {token}"}
+
+        created = client.post("/projects", json={"name": "Mine to keep"}, headers=headers)
+        assert created.status_code == 201, created.text
+        new_id = created.json()["id"]
+
+        # The point: the creator can immediately use what they created.
+        assert client.get(f"/projects/{new_id}/documents", headers=headers).status_code == 200
+
+
+def test_project_list_shows_only_projects_the_caller_belongs_to(engine) -> None:
+    """
+    Listing every project leaked other tenants' names and ids - the same
+    disclosure that answering 404 rather than 403 elsewhere exists to prevent.
+    """
+    with TestClient(app) as client:
+        session_factory = async_sessionmaker(engine, expire_on_commit=False)
+        app.state.session_factory = session_factory
+        app.state.settings = _settings(auth_enabled=False)
+        mine = client.post("/projects", json={"name": "Visible to me"}).json()["id"]
+        theirs = client.post("/projects", json={"name": "Someone else's secret"}).json()["id"]
+        _seed(session_factory, email="member@example.com", role="viewer",
+              project_id=uuid.UUID(mine))
+
+        app.state.settings = _settings(auth_enabled=True)
+        token = client.post(
+            "/auth/login", json={"email": "member@example.com", "password": PASSWORD}
+        ).json()["access_token"]
+
+        listed = client.get("/projects", headers={"Authorization": f"Bearer {token}"})
+        assert listed.status_code == 200
+        names = [item["name"] for item in listed.json()]
+        ids = [item["id"] for item in listed.json()]
+        assert "Visible to me" in names
+        assert "Someone else's secret" not in names
+        assert theirs not in ids
+
+
+def test_disabled_auth_still_lists_every_project(engine) -> None:
+    """The membership filter must not change behaviour while auth is off."""
+    with TestClient(app) as client:
+        app.state.session_factory = async_sessionmaker(engine, expire_on_commit=False)
+        app.state.settings = _settings(auth_enabled=False)
+        client.post("/projects", json={"name": "One"})
+        client.post("/projects", json={"name": "Two"})
+        names = [item["name"] for item in client.get("/projects").json()]
+        assert "One" in names and "Two" in names
