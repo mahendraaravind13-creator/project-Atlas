@@ -43,6 +43,11 @@ LAYOUT: list[tuple[str, str, str]] = [
     ("change_orders", "*.md", "change_order"),
     ("schedules", "*.csv", "schedule"),
     ("commissioning", "*.md", "commissioning_record"),
+    # Seeded so the schedule analysis can be pointed at it. Weather and
+    # workforce are read from this log's dated rows rather than supplied as
+    # scenario numbers, and without the document in the project there is
+    # nothing for a delay day to cite.
+    ("site_conditions", "*.csv", "site_conditions"),
 ]
 
 

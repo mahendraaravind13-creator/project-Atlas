@@ -33,13 +33,15 @@ The seeded SWGR-A scenario demonstrates a deliberate 50 kAIC rating deviation, i
 | --- | --- | --- |
 | Document ingestion, project-scoped storage, PDF/CSV parsing, contextual chunks, Qdrant indexing | **Implemented** | API and ingestion tests |
 | Compliance comparison, unit normalization, reviewer actions, audit records | **Implemented** | Synthetic evaluation: TP/FP/FN/TN `6/0/0/6` |
-| CPM schedule impact engine | **Implemented** | One planted scenario: predicted/simulated delay `35` days |
+| CPM schedule impact engine | **Implemented** | 12 labelled cases over 6 tasks and 2 analysis dates: mean absolute prediction error `1.5` days, max `3`; lead time `0`–`65` days |
+| Weather and workforce as evidenced schedule inputs | **Implemented** | Derived from a dated site conditions log, not caller-supplied; every delay day cites the rows behind it |
 | Commissioning procedures, deterministic pass/fail, NCRs, readiness | **Implemented** | `21/21` steps evaluated; expected/actual NCR `1/1` |
 | Equipment Digital Thread and project isolation | **Implemented** | API and cross-project tests |
 | Advanced RAG, RFI matching, and Groq-backed cited answers | **Demo implementation** | Evaluated only on synthetic corpus; live Groq response quality is not verified |
-| Supply-chain shipment risk and alternatives | **Demo implementation** | Synthetic shipments/events only; no live tracking |
+| Supply-chain shipment risk and alternatives | **Demo implementation** | Synthetic shipments/events only; no live tracking. 8 alerts across 5 shipments, latency `20`–`420` min (median `75`) |
 | Impact Chain and mitigation simulator | **Demo implementation** | Idempotent SWGR-A integration scenario |
-| Authentication/RBAC, object storage, queued ingestion, live AIS/weather/ERP/P6/QMS integrations | **Roadmap** | Not represented as active functionality |
+| Authentication and per-project RBAC | **Implemented** | scrypt password hashing, HMAC-signed session tokens, viewer/reviewer/admin per project; non-members get 404, not 403 |
+| Object storage, queued ingestion, live AIS/weather/ERP/P6/QMS integrations | **Roadmap** | Not represented as active functionality |
 
 ## Advanced RAG flow
 
@@ -116,7 +118,11 @@ Values below are calculated from the synthetic evaluation suite in [`evaluation/
 
 ## Security and project isolation
 
-All persisted/retrieved project data and vector payloads are scoped by `project_id`; API services include project-isolation tests. Upload validation and size limits are configured centrally. Backend secrets remain server-only: never expose `GROQ_API_KEY`, `QDRANT_API_KEY`, `DATABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, or `JWT_SECRET_KEY` to the browser. **Authentication and RBAC are roadmap items**, so this demo must remain behind an authenticated gateway before public exposure.
+All persisted/retrieved project data and vector payloads are scoped by `project_id`; API services include project-isolation tests. Upload validation and size limits are configured centrally. Backend secrets remain server-only: never expose `GROQ_API_KEY`, `QDRANT_API_KEY`, `DATABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, or `JWT_SECRET_KEY` to the browser.
+
+**Authentication is implemented and enabled on the deployment** (`ATLAS_AUTH_ENABLED=true`). Passwords are hashed with `hashlib.scrypt` and session tokens are HMAC-SHA256 signed — both from the standard library, deliberately, rather than adding a dependency. A user is global; `project_members` grants **viewer**, **reviewer** or **admin** per project. Reading needs viewer, mutating needs reviewer, managing members needs admin. A non-member receives **404, not 403**, because a 403 would confirm the project exists.
+
+Its limits are specific and worth stating: tokens are short-lived but **cannot be revoked** (deactivating a user takes effect immediately, since the account is re-read on every request, but an issued token otherwise stands until it expires); there is **no password-reset flow**; and `/auth/login` is **not rate-limited** — repeated attempts are logged, not throttled.
 
 ## Local demo
 
@@ -128,9 +134,9 @@ cp .env.example .env
 ./scripts/start_demo.sh
 ```
 
-This creates/reuses the synthetic `Atlas Synthetic Demo` project, uploads 27 synthetic documents, seeds five synthetic shipments, and restores the idempotent SWGR-A vertical scenario. Open [http://localhost:3000](http://localhost:3000); FastAPI documentation is at [http://localhost:8001/docs](http://localhost:8001/docs).
+This creates/reuses the synthetic `Atlas Synthetic Demo` project, uploads 28 synthetic documents (including the site conditions log the schedule analysis reads weather and workforce from), seeds five synthetic shipments, and restores the idempotent SWGR-A vertical scenario. Open [http://localhost:3000](http://localhost:3000); FastAPI documentation is at [http://localhost:8001/docs](http://localhost:8001/docs).
 
-There are no demo credentials because application authentication is not implemented. Use the local demo only or put a deployed instance behind an authenticated gateway.
+Create a local account with `python scripts/create_user.py` (minimum password length is 12). On the deployment, a read-only account is provided for reviewers — see **Deployment** below.
 
 ### Environment-variable names
 
@@ -143,11 +149,20 @@ See [`.env.example`](.env.example) for names only, [DEPLOY.md](DEPLOY.md) for th
 ## Testing
 
 ```bash
-python3 -m pytest -q
+python3 -m pytest -q                    # 222 backend tests
 python3 -m compileall -q app scripts evaluation migrations
-python3 -m evaluation.run_all
-(cd frontend && npm run lint && npm run typecheck && npm test && npm run build)
+ATLAS_LLM_PROVIDERS= python3 -m evaluation.run_all
+(cd frontend && npm run lint && npm run typecheck && npm test && npm run build)   # 22 frontend tests
 ```
+
+`ATLAS_LLM_PROVIDERS=` disables the narrator for the evaluation run. Narration is
+not an input to any metric, and leaving providers enabled makes the run take
+minutes longer while it retries rate-limited endpoints.
+
+The evaluation is reproducible: two runs of the same script produce identical
+numbers, and `tests/test_evaluate_synthetic.py` asserts it. That was not true
+before — the parameter search broke ties on measured wall-clock latency, so the
+host decided which hyperparameters won.
 
 Old documents are reindexed only when explicitly requested:
 
@@ -181,16 +196,18 @@ Two prepared targets, described in [DEPLOY.md](DEPLOY.md):
 - **AWS, single instance** — one EC2 box runs the API, dashboard, PostgreSQL, Qdrant and Caddy through [`docker-compose.aws.yml`](docker-compose.aws.yml); GitHub Actions builds both images and the instance pulls them, so a push to `main` rolls out. Self-contained, free-tier sized, and uploads are durable on named volumes. See [docs/AWS_DEPLOY.md](docs/AWS_DEPLOY.md).
 - **Render + Vercel** — `frontend` on Vercel and FastAPI on Render using [`render.yaml`](render.yaml), with Supabase-compatible PostgreSQL and Qdrant Cloud configured through backend-only variables. The production start script runs `alembic upgrade head` then Uvicorn on Render’s `$PORT`.
 
-The live demo runs on the AWS target: a single `t3.micro` in `ap-south-1` behind Caddy with a Let's Encrypt certificate, serving the seeded synthetic project (27 documents, 5 shipments, the SWGR-A scenario). `/ready` reports `api`, `database` and `qdrant` healthy.
+The live demo runs on the AWS target: a single `t3.micro` in `ap-south-1` behind Caddy with a Let's Encrypt certificate, serving the seeded synthetic project (28 documents, 5 shipments, the SWGR-A scenario). `/ready` reports `api`, `database` and `qdrant` healthy.
 
-Two caveats stated plainly. There is **no authentication** - `project_id` is data scoping, not authorization - so anyone with the URL can read and upload; it is a demo on synthetic data, not a production deployment. And the evidence-backed copilot currently returns `INSUFFICIENT_EVIDENCE` on the seeded corpus: retrieval and generation both run, and the claim verifier rejects the answer as ungrounded. The deterministic engines - compliance, schedule, commissioning, digital thread, impact chain - are unaffected.
+**Access.** Authentication is enabled on the deployment. A read-only account is available for reviewers — `viewer@atlas.demo` — and it cannot upload, approve, or reset anything. The data is synthetic and labelled throughout.
+
+**One caveat stated plainly.** The evidence-backed copilot answers most questions and refuses a specific class of them. Measured on the deployment: *"Is the ArcLine switchgear submittal compliant with the interrupting rating requirement?"* returns three supported, cited claims, and *"What battery autonomy is required for the UPS?"* answers on 3 of 3 attempts — but *"What interrupting rating does the switchgear specification require?"* refuses on 3 of 3, at 131–141 context tokens against 428 for the phrasing that works. The outcome is stable per phrasing, so it is structural rather than random, and it is **not yet root-caused**. Every rejected claim now logs its citations, the terms absent from the evidence, and the term overlap, so it can be diagnosed rather than guessed at. Demo the compliance-framed question — it is the stronger demonstration anyway, because it shows a comparison rather than a lookup. The deterministic engines — compliance, schedule, commissioning, digital thread, impact chain — are unaffected.
 
 ## Repository structure
 
 ```text
 app/                    FastAPI services, models, workflow, deterministic engines
 frontend/               Next.js dashboard and typed API client
-data/synthetic_epc/     Clearly marked synthetic EPC corpus and ground truth
+data/synthetic_epc/     Clearly marked synthetic EPC corpus, site conditions log, and ground truth
 migrations/             Alembic schema migrations
 tests/                  Backend unit, API, and integration tests
 evaluation/             Reproducible synthetic evaluation inputs and reports
@@ -201,7 +218,7 @@ docs/                   Architecture, demo, provenance, limitations, licenses
 
 ## Known limitations and roadmap
 
-See [LIMITATIONS.md](docs/LIMITATIONS.md) and [ROADMAP.md](docs/ROADMAP.md). The key limitations are synthetic-only operational data, no application auth/RBAC, no live logistics/weather/enterprise integration, local/prototype graph storage, and unverified live Groq quality. The next production step is authenticated tenancy and queued, object-storage-backed ingestion—not additional UI features.
+See [LIMITATIONS.md](docs/LIMITATIONS.md) and [ROADMAP.md](docs/ROADMAP.md). The key limitations are synthetic-only operational data, no live logistics/weather/enterprise integration, local/prototype graph storage, unverified live Groq quality, and an authentication layer whose tokens cannot be revoked and whose login endpoint is not rate-limited. Hours saved remains `NOT_MEASURED` — the brief asks for it and we will not invent a figure. The next production step is measured pilot data and queued, object-storage-backed ingestion, not additional UI features.
 
 ## Team
 

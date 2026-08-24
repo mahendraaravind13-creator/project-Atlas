@@ -374,10 +374,20 @@ dc exec -T postgres pg_dump -U atlas atlas | gzip > ~/atlas-backup.sql.gz
 
 ## Security posture
 
-**There is no authentication in Atlas.** `project_id` is data scoping, not
-authorization — anyone who can reach the URL can read and upload to every
-project. That is acceptable for a judged demo on a synthetic dataset and is not
-acceptable for real project content. Concretely:
+**Authentication is implemented, and the live deployment runs with it on**
+(`ATLAS_AUTH_ENABLED=true`, with `JWT_SECRET_KEY` set). Passwords are hashed with `hashlib.scrypt` and session tokens are HMAC-SHA256 signed, both from the standard library. A user is global; `project_members` grants **viewer**, **reviewer** or **admin** per project. Reading needs viewer, mutating needs reviewer, managing members needs admin. A non-member receives **404, not 403**, because a 403 would confirm the project exists.
+
+**It is off by default.** If you stand up an instance without setting
+`ATLAS_AUTH_ENABLED`, `project_id` is data scoping rather than authorization and
+anyone who can reach the URL can read and upload to every project — acceptable
+for a judged demo on a synthetic dataset, not acceptable for real project
+content.
+
+Known gaps even with it on: issued tokens cannot be revoked before they expire
+(deactivating a user does take effect immediately, since the account is re-read
+on every request), there is no password-reset flow, `/auth/login` is not
+rate-limited, and `POST /auth/users` is gated on holding admin on *any* project
+rather than a platform-wide flag. Concretely, also:
 
 - Keep SSH restricted to your own IP.
 - Postgres and Qdrant publish no ports; keep it that way.

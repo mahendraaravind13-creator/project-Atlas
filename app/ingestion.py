@@ -40,7 +40,10 @@ DocumentType = Literal[
     "schedule",
     "commissioning_record",
 ]
-SUPPORTED_TYPES = {"specification", "submittal", "RFI", "meeting_minutes", "change_order", "schedule", "commissioning_record"}
+# Row-keyed CSV document types. Both are read row-per-task by _extract_schedule,
+# which keys on the task_id column that each of them carries.
+ROW_KEYED_CSV_TYPES = {"schedule", "site_conditions"}
+SUPPORTED_TYPES = {"specification", "submittal", "RFI", "meeting_minutes", "change_order", "schedule", "commissioning_record", "site_conditions"}
 # Equipment tags are recognised by SHAPE, not from a whitelist.
 #
 # This was `UPS-[A-Z]…|CRAC-\d+|SWGR-[A-Z]…`, which had two consequences. It
@@ -271,10 +274,10 @@ def validate_upload(filename: str, document_type: str, size_bytes: int, settings
         raise IngestionError("unsupported_document_type", "Unsupported document type")
     if not filename or suffix not in {".pdf", ".csv", ".md", ".txt"}:
         raise IngestionError("unsupported_file", "Only PDF, CSV, Markdown, and text files are supported")
-    if document_type == "schedule" and suffix != ".csv":
-        raise IngestionError("invalid_schedule", "Schedules must be uploaded as CSV")
-    if document_type != "schedule" and suffix == ".csv":
-        raise IngestionError("invalid_document", "CSV files must use the schedule document type")
+    if document_type in ROW_KEYED_CSV_TYPES and suffix != ".csv":
+        raise IngestionError("invalid_schedule", "Schedules and site conditions logs must be uploaded as CSV")
+    if document_type not in ROW_KEYED_CSV_TYPES and suffix == ".csv":
+        raise IngestionError("invalid_document", "CSV files must use the schedule or site_conditions document type")
     if size_bytes == 0 or size_bytes > settings.max_upload_bytes:
         raise IngestionError("invalid_file_size", f"File must be between 1 and {settings.max_upload_bytes} bytes")
 

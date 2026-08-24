@@ -4,10 +4,15 @@ The running service serves interactive OpenAPI documentation at `/docs` and the
 raw schema at `/openapi.json`; those are authoritative. The table below is
 generated from that schema so it cannot drift out of date.
 
-Every project resource is scoped by the path `project_id`. `project_id` filtering
-is data scoping, **not** authorization: there is no authentication, so any caller
-that can reach the service can read any project. Keep it behind an authenticated
-gateway.
+Every project resource is scoped by the path `project_id`.
+
+**When `ATLAS_AUTH_ENABLED=true`** (as on the live deployment), requests carry a
+bearer token from `POST /auth/login`. Passwords are hashed with `hashlib.scrypt` and session tokens are HMAC-SHA256 signed, both from the standard library. A user is global; `project_members` grants **viewer**, **reviewer** or **admin** per project. Reading needs viewer, mutating needs reviewer, managing members needs admin. A non-member receives **404, not 403**, because a 403 would confirm the project exists. Read operations require viewer, mutating operations require reviewer, and
+member management requires admin.
+
+**When it is disabled** — the default — `project_id` filtering is data scoping,
+**not** authorization: any caller that can reach the service can read any
+project. Keep such a deployment behind an authenticated gateway.
 
 49 operations across 14 areas.
 

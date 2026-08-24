@@ -256,3 +256,46 @@ def test_the_synthetic_log_matches_the_schedule_it_describes() -> None:
     for task_id in conditions.weather_impact_days:
         assert f",{task_id}," in schedule, f"{task_id} is not in the schedule"
     assert 0 < conditions.workforce_availability < 1
+
+
+# ── getting the log into a project ──────────────────────────────────────────
+
+
+def test_the_log_can_be_uploaded_at_all() -> None:
+    """Without this the analysis endpoint could never be used.
+
+    Uploads were gated on `document_type != "schedule" and suffix == ".csv"`,
+    so a site conditions CSV was rejected outright - and the schedule endpoint
+    resolves the log by document id, meaning the feature had no way in.
+    """
+    from app.config import Settings
+    from app.ingestion import extract_document, validate_upload
+
+    path = Path("data/synthetic_epc/site_conditions/site_conditions_log.csv")
+    validate_upload(path.name, "site_conditions", path.stat().st_size, Settings())
+
+    extracted = extract_document(path, Settings())
+    assert len(extracted.pages) == 46
+    assert extracted.pages[0].section.startswith("Task ")
+
+
+@pytest.mark.parametrize(
+    ("filename", "document_type"),
+    [
+        ("notes.csv", "specification"),  # a CSV still needs a row-keyed type
+        ("log.md", "site_conditions"),  # and this type still needs a CSV
+    ],
+)
+def test_widening_the_csv_gate_did_not_open_it(filename: str, document_type: str) -> None:
+    from app.config import Settings
+    from app.ingestion import validate_upload
+
+    with pytest.raises(IngestionError):
+        validate_upload(filename, document_type, 100, Settings())
+
+
+def test_the_demo_seed_includes_the_log() -> None:
+    """Seeded, or the deployed demo cannot show an evidenced weather day."""
+    from scripts.seed_demo import LAYOUT
+
+    assert ("site_conditions", "*.csv", "site_conditions") in LAYOUT
