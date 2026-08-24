@@ -41,7 +41,61 @@ DocumentType = Literal[
     "commissioning_record",
 ]
 SUPPORTED_TYPES = {"specification", "submittal", "RFI", "meeting_minutes", "change_order", "schedule", "commissioning_record"}
-EQUIPMENT_PATTERN = re.compile(r"\b(?:UPS-[A-Z][A-Z0-9]*|CRAC-\d+|SWGR-[A-Z][A-Z0-9]*)\b")
+# Equipment tags are recognised by SHAPE, not from a whitelist.
+#
+# This was `UPS-[A-Z]…|CRAC-\d+|SWGR-[A-Z]…`, which had two consequences. It
+# could only ever see three families, so every other equipment item on a project
+# was invisible to any view that lists equipment - including the generator,
+# chiller, PDU, transformer, fire-suppression and BMS items in the extended
+# corpus. And `CRAC-\d+` matched document sequence numbers: the filename
+# `CRAC-001_PolarAir_CRAC-1.md` yielded a phantom tag `CRAC-001` alongside the
+# real `CRAC-1`, which then travelled into compliance findings and stopped them
+# pairing with the shipment for the same equipment.
+#
+# A tag is a short uppercase family, a hyphen, then a short designator: SWGR-A,
+# CRAC-1, XFMR-A, PDU-A2. Two exclusions keep document identifiers out:
+#
+#   DOCUMENT_PREFIXES  identifiers that share the shape but name a document,
+#                      a task or a finding rather than a piece of equipment.
+#   leading zero       a zero-padded suffix (-001, -002) is a sequence number.
+#                      Real tags are not zero-padded, which is what separates
+#                      CRAC-1 from CRAC-001.
+DOCUMENT_PREFIXES = frozenset({
+    "SUB", "SPEC", "RFI", "CO", "MM", "CX", "SR", "CF", "T", "SHP", "SYN", "EQ", "V", "PO", "NCR",
+})
+
+_EQUIPMENT_CANDIDATE = re.compile(r"\b([A-Z]{2,6})-([A-Z0-9]{1,4})\b")
+
+
+def _is_equipment_tag(family: str, designator: str) -> bool:
+    if family in DOCUMENT_PREFIXES:
+        return False
+    # A zero-padded suffix is a document sequence number, not a designator.
+    if len(designator) > 1 and designator[0] == "0" and designator.isdigit():
+        return False
+    # A designator that is itself a known document prefix means this matched the
+    # first two segments of something like SUB-CRAC-002.
+    if designator in DOCUMENT_PREFIXES:
+        return False
+    return True
+
+
+class _EquipmentPattern:
+    """Keeps the `.findall(text)` interface the callers already use."""
+
+    def findall(self, text: str) -> list[str]:
+        return [
+            f"{family}-{designator}"
+            for family, designator in _EQUIPMENT_CANDIDATE.findall(text)
+            if _is_equipment_tag(family, designator)
+        ]
+
+    @property
+    def pattern(self) -> str:
+        return _EQUIPMENT_CANDIDATE.pattern
+
+
+EQUIPMENT_PATTERN = _EquipmentPattern()
 SPEC_PATTERN = re.compile(r"\b\d+\.\d+(?:\.\d+)?\b")
 
 
