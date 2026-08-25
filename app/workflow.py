@@ -384,7 +384,11 @@ class LLMResponder:
         if not history:
             return question
         if not self.gateway.client:
-            raise IngestionError("generation_unavailable", "ATLAS_GROQ_API_KEY is required for knowledge responses", 503)
+            raise IngestionError(
+                "generation_unavailable",
+                "No model provider is configured. Set ATLAS_LLM_PROVIDERS and the matching API key.",
+                503,
+            )
         context = "\n".join(f"{message.role}: {message.content}" for message in history[-6:])
         return await self._complete(
             "Rewrite the latest user question so it is standalone. Preserve intent and do not answer it.",
@@ -403,7 +407,11 @@ class LLMResponder:
                 status="INSUFFICIENT_EVIDENCE",
             )
         if not self.gateway.client:
-            raise IngestionError("generation_unavailable", "ATLAS_GROQ_API_KEY is required for knowledge responses", 503)
+            raise IngestionError(
+                "generation_unavailable",
+                "No model provider is configured. Set ATLAS_LLM_PROVIDERS and the matching API key.",
+                503,
+            )
         citation_map = {f"C{index}": chunk for index, chunk in enumerate(context.chunks, start=1)}
         evidence = [
             {
@@ -831,7 +839,12 @@ class KnowledgeService:
 
     async def _generate_answer(self, question: str, context: ContextBundle) -> object:
         generate = getattr(self.responder, "generate", None)
-        return await generate(question, context) if generate else await self.responder.answer(question, context)
+        try:
+            return await generate(question, context) if generate else await self.responder.answer(question, context)
+        except IngestionError as exc:
+            if exc.code in {"generation_unavailable", "model_gateway_error"}:
+                return _evidence_fallback(context)
+            raise
 
     async def _verify_answer(self, generated: object, context: ContextBundle) -> AnswerResult:
         if isinstance(generated, AnswerResult):
@@ -1150,6 +1163,35 @@ def _insufficient_answer(
         status="INSUFFICIENT_EVIDENCE",
         missing_information=missing_information or [],
         conflicting_sources=conflicting_sources or [],
+    )
+
+
+def _evidence_fallback(context: ContextBundle) -> AnswerResult:
+    if not context.chunks:
+        return _insufficient_answer(["No retrieved evidence was available."])
+    claims: list[AnswerClaim] = []
+    citations: list[AnswerCitation] = []
+    for index, chunk in enumerate(context.chunks[:3], start=1):
+        citation_id = f"C{index}"
+        source_span = (chunk.evidence_spans or _fallback_spans(chunk.text))[0]
+        span = SupportingSpan(text=source_span.text, start=source_span.start, end=source_span.end)
+        claims.append(AnswerClaim(text=span.text, type="fact", citation_ids=[citation_id]))
+        citations.append(
+            AnswerCitation(
+                **chunk.citation.model_dump(), citation_id=citation_id, chunk_id=chunk.chunk_id, supporting_spans=[span]
+            )
+        )
+    answer = "AI generation is unavailable. Retrieved project evidence:\n" + "\n".join(
+        f"Document fact: {claim.text} [C{index}]" for index, claim in enumerate(claims, start=1)
+    )
+    return AnswerResult(
+        answer=answer,
+        citations=citations,
+        claims=claims,
+        confidence=0.5,
+        status="PARTIAL",
+        missing_information=["AI generation was unavailable; showing retrieved evidence only."],
+        conflicting_sources=context.revision_conflicts,
     )
 
 

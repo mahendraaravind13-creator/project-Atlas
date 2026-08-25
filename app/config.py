@@ -11,6 +11,7 @@ class Settings(BaseSettings):
         env_prefix="ATLAS_",
         extra="ignore",
         populate_by_name=True,
+        env_ignore_empty=True,
     )
 
     environment: str = "local"
