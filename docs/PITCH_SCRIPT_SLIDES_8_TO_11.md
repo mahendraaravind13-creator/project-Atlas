@@ -1,101 +1,79 @@
 # Spoken script — slides 8 to 11
 
-**About 120 seconds.** Roughly 30 seconds a slide.
+**About 100 seconds** — roughly 25 a slide, near 290 words.
 
-Written as connected speech, not bullet points — each slide hands off to the
-next, so the four play as one argument rather than four separate readings. The
-**bold** words are where to lean; everything else can move quickly.
+Full sentences throughout, and each slide ends by opening the next, so the four
+run as one argument: here is the market, here is what we charge, here is why we
+can charge it, here is how it holds at scale.
 
-⚠️ = say it exactly as written. Those three lines are what make every number
-around them worth stating.
-
----
-
-## Slide 8 — MARKET PLAN · ~30s
-
-> India has announced a data-centre pipeline of **8.33 gigawatts**, and about
-> **1,123 megawatts** of it is actually running today — roughly doubling by
-> 2027. So there is an enormous gap between what has been promised and what has
-> been built, and every megawatt in that gap belongs to a delivery team working
-> to a date somebody has already committed to.
->
-> Those are our users: project controls, procurement, QA and commissioning. The
-> contractor buys Atlas for a project; the owner buys it across a portfolio. We
-> start deliberately narrow, on **30 to 100 megawatt builds in India**, because
-> that is the size where a delay is expensive enough to be worth preventing.
->
-> ⚠️ And the $29 million on the right is our own arithmetic, not a published
-> market figure — the assumption is on the slide.
-
-*(hand off)* → **"So that's the market. Here's how we charge for it."**
+**Bold** = lean on it. ⚠️ = say it exactly; those lines are what make every
+number around them worth stating.
 
 ---
 
-## Slide 9 — PRICED AGAINST DELAY · ~30s
+## Slide 8 — MARKET PLAN · ~25s
 
-> A project licence runs **fifty lakh to one and a quarter crore** a year, and a
-> portfolio licence starts at **three point three crore**.
+> India has announced **8.33 gigawatts** of data centres, and only about
+> **1,123 megawatts** is running today. Every megawatt in that gap belongs to a
+> team working to a date somebody has already promised.
 >
-> But we don't ask anyone to roll this out across a campus. We start with a
-> **twelve-week pilot on a single equipment package** — the switchgear, say —
-> and we measure what it caught: deviations found, and schedule exposure
-> identified before it turned into a delay. If those numbers hold up, we expand.
-> If they don't, the customer has spent twelve weeks rather than a year.
+> Those teams are our users — project controls, procurement, QA, commissioning.
+> Contractors buy per project, owners per portfolio, and we start on **30 to 100
+> megawatt builds in India**.
 >
-> The reason that price works is simple. **A three-month slip on a 50 megawatt
-> project costs roughly ₹72 crore in financing alone** — before lost revenue,
-> before penalties. We cost two to three percent of that one number.
->
-> ⚠️ That ₹72 crore is an illustrative calculation, not a measured customer
-> result.
-
-*(hand off)* → **"And we can price against delay because of what the product actually does."**
+> ⚠️ The $29 million is our own arithmetic, not a published figure.
 
 ---
 
-## Slide 10 — WHY ATLAS · ~30s
+## Slide 9 — PRICED AGAINST DELAY · ~25s
 
-> If you take one sentence from this pitch, take this one: **other tools manage
-> project stages — Atlas connects their consequences.**
+> **So here is what we charge.** A project licence is **fifty lakh to one and a
+> quarter crore**; a portfolio starts at **three point three crore**.
 >
-> It works in three moves. **Evidence:** you ask one question and get one cited
-> answer, linked back to the clause it came from; if the documents don't support
-> an answer, Atlas says so rather than guessing. **Consequence:** and this is the
-> part nobody else does — we don't stop at "non-compliant", we carry that
-> deviation forward into the procurement delay, the critical path, and the
-> commissioning impact. **Control:** the engineering maths is deterministic code
-> rather than a language model, and every action Atlas suggests stays pending
-> until an engineer approves it.
+> We don't ask for a campus rollout. We start with a **twelve-week pilot on one
+> equipment package** and measure what it caught. If the numbers hold, we expand.
 >
-> **One question, one cited answer, one connected impact chain, one controlled
-> decision.**
-
-*(hand off)* → **"That chain has to hold when it's not one project."**
+> And they work, because **a three-month slip on 50 megawatts costs about ₹72
+> crore in financing alone.** We cost two percent of that.
+>
+> ⚠️ That figure is illustrative, not a measured customer result.
 
 ---
 
-## Slide 11 — SCALABILITY · ~30s
+## Slide 10 — WHY ATLAS · ~25s
 
-> It's built for that already: async and stateless, so it takes replicas today,
-> with every row and every vector isolated by project.
+> **We can price against delay because of what the product does.** One sentence,
+> if you take nothing else: **other tools manage project stages — Atlas connects
+> their consequences.**
 >
-> From there we scale in three stages, and each one is triggered by a customer
-> rather than a calendar. With our **first design partner** we add sparse
-> retrieval, worker-based ingestion and object storage, targeting p95 under two
-> seconds. At **five to ten projects** we split embedding and reranking into
-> their own service and add read replicas and quotas. At **portfolio scale** it's
-> tenant sharding, autoscaling, backups and published SLOs.
+> You ask one question and get one cited answer, linked to the clause it came
+> from. Then we carry that deviation into the procurement delay, the critical
+> path and the commissioning impact — **the part nobody else does.** The maths is
+> code, not a model, and every action waits for an engineer.
 >
-> **We split services only after measuring a real bottleneck** — a prototype that
-> ships as twelve microservices isn't scalable, it's just harder to change.
+> **One question, one cited answer, one impact chain, one controlled decision.**
+
+---
+
+## Slide 11 — SCALABILITY · ~25s
+
+> **That has to hold beyond one project, and it is built for it** — async,
+> stateless, replica-ready, every row isolated by project.
+>
+> We scale in three stages, each triggered by a customer rather than a calendar:
+> object storage and sparse retrieval for the **first design partner**; a
+> separate embedding service and read replicas at **ten projects**; sharding,
+> autoscaling and published SLOs at **portfolio scale**.
+>
+> **We split services only after measuring a real bottleneck.**
 
 ---
 
 ## If you're running over
 
-Cut slide 11 to: *"It's async, stateless and project-isolated, so it takes
-replicas today — and we scale in three stages, splitting services only after
-measuring a real bottleneck."*
+Cut slide 11 to one line: *"It's async, stateless and project-isolated, so it
+takes replicas today — and we split services only after measuring a real
+bottleneck."*
 
 Never cut the ₹72 crore line or the hook on slide 10. Those two carry the pitch.
 
@@ -103,7 +81,7 @@ Never cut the ₹72 crore line or the hook on slide 10. Those two carry the pitc
 
 **"Is the $29M real?"**
 > It's our arithmetic and the assumption is on the slide — change the software
-> rate and the number changes. We'd rather show the method than quote a number
+> rate and the number changes. We'd rather show the method than quote a figure
 > we can't defend.
 
 **"Why not just Procore?"**
